@@ -1,0 +1,163 @@
+This tutorial is to show you how to load sectors from a floppy disk.
+Variations will be needed to get this code to work on most other disks.
+
+In the bootloader code you can use a specific BIOS interrupt to load the sectors
+from the floppy disk for you.
+But unfortunatly it addresses the drive in the form of heads, cylinders and sectors.
+
+Ideally we want to be able to refer to the floppy disk in terms of sectors only (chunks of 512bytes)
+the code to do that is in the LBA to CHS tutorial. Though to use that you need to first understand this tutorial.
+
+Explaination of the CHS addressing system:
+CHS (I think) simply stands for Cylinder, Head, Sector. If not it is still a good way to remember.
+This is the addressing system used by the low level BIOS functions and the likes.
+The definitions of each are:
+Sector = Chunk of data on the disk (normally 512bytes) - Segment of a cylinder(aka track)
+Cylinder = This is a track on the disk (normally contains 18sectors)
+Head = Which side of the disk (most floppys now are double sided, 2 heads)
+
+So sectors 1-18 are on cylinder 1 on head 1 (or track 1 on side 1) but after that it gets complicated
+sectors 18+ are on varying cylinders and the head number alternates per cylinder.
+
+This would be better explained with a diagram but that is yet to come I'm afraid though I may include one at a later date.
+
+Explanation of the interrupt function we will be using:
+We will be using interrupt 0x13 (anything starting in 0x or ending with h is a hexidecimal number)
+Function number passed in ah (Most int's use ah to define a specific function) = 2 (Read sector)
+The values to be passed in the rest of the registers:
+al = Number of sectors to read (To be safe I wouldn't cross the cylinder boundary)
+dh = Head to read from (aka side)	- Addressing registers eg: Town/City
+dl = Drive to read from.		- Country
+ch = Cylinder (aka track) to read from	- Street name
+cl = Sector to read			- House number
+es = Segment to put loaded data into	- Output address in eg: Street name
+bx = Offset to put loaded data into	- House number in the street
+
+An example to load the first sector of a floppy disk would be:
+ah=2(Function number),al=1(1 sector to read),dh=1(First head)
+dl=0(default for floppy drive),ch=1(First cylinder),cl=1(First sector)
+es=1000h(Put the output at 1000h in memory), bx=0(Offset of 0)
+
+To get beyound the 18th sector though you would have to change the head and cylinder values as
+appropriet.
+
+Example of the code working:
+; Code to load the second sector on the disk into memory location 0x2000:0x0000
+	mov bx, 0x2000		; Segment location to read into (remember can't load direct to segment register)
+	mov es, bx
+	mov bx, 0		; Offset to read into
+        mov ah, 02              ; BIOS read sector function
+        mov al, 01              ; read one sector
+        mov ch,	01		; Track to read
+        mov cl,	02		; Sector to read
+        mov dh,	01		; Head to read
+        mov dl,	00		; Drive to read
+        int 0x13                ; Make the BIOS call (int 13h contains mainly BIOS drive functions)
+
+I recommend using the LBA to CHS code from one of my other tutorials to get past the cylinder and head addressing problems.
+In order to use that you put the code into a loop and read one sector at a time like so:
+Get and set output location in memory,get start location,get number of sectors to load.
+Loop 'number of sectors to load' times:
+Run LBA to CHS (to convert the sector number in a head and cylinder)
+Run int 0x13 to load the sector from the LBA to CHS outputed data.
+Increase bx by the number of bytes per sector (512) ready for next sector.
+
+This code is often best put into a procedure and called as needed to load sectors off a floppy disk.
+
+A complete example of such a procedure is:
+; Load kernel procedure
+LoadKern:
+        mov ah, 0x02    ; Read Disk Sectors
+        mov al, 0x01    ; Read one sector only (512 bytes per sector)
+        mov ch, 0x00    ; Track 0
+        mov cl, 0x02    ; Sector 2
+        mov dh, 0x00    ; Head 0
+        mov dl, 0x00    ; Drive 0 (Floppy 1) (This can be replaced with the value in BootDrv)
+        mov bx, 0x2000  ; Segment 0x2000
+        mov es, bx      ;  again remember segments bust be loaded from non immediate data
+        mov bx, 0x0000  ; Start of segment - offset value
+.readsector
+        int 0x13        ; Call BIOS Read Disk Sectors function
+        jc .readsector  ; If there was an error, try again
+
+        mov ax, 0x2000  ; Set the data segment register
+        mov ds, ax      ;  to point to the kernel location in memory
+
+        jmp 0x2000:0x0000       ; Jump to the kernel
+
+A complete example of a procedure including the LBA to CHS code (that procedure is in that tutorial for details on it, though this does use a different version of that procedure):
+; Procedure ReadSectors - Reads sectors from the disk.
+;  Input: cx - Number of sectors; ax - Start position
+;  Output: Loaded file into: es:bx
+
+ReadSectors:
+.MAIN:                          ; Main Label
+        mov di, 5               ; Loop 5 times max!!!
+.SECTORLOOP:
+        push ax                 ; Save register values on the stack
+        push bx
+        push cx
+        call LBAtoCHS             ; Change the LBA addressing to CHS addressing
+        ; The code to read a sector from the floppy drive
+        mov ah, 02              ; BIOS read sector function
+        mov al, 01              ; read one sector
+        mov ch, BYTE [absoluteTrack]    ; Track to read
+        mov cl, BYTE [absoluteSector]   ; Sector to read
+        mov dh, BYTE [absoluteHead]     ; Head to read
+        mov dl, BYTE [BootDrv]          ; Drive to read
+        int 0x13                ; Make the BIOS call
+        jnc .SUCCESS
+        dec di                  ; Decrease the counter
+        pop cx                  ; Restore the register values
+        pop bx
+        pop ax
+        jnz .SECTORLOOP         ; Try the command again incase the floppy drive is being annoying
+        call ReadError          ; Call the error command in case all else fails
+.SUCCESS
+        pop cx                  ; Restore the register values
+        pop bx
+        pop ax
+        add bx, WORD [BytesPerSector]   ; Queue next buffer (Adjust output location so as to not over write the same area again with the next set of data)
+        inc ax                          ; Queue next sector (Start at the next sector along from last time)
+        ; I think I may add a status bar thing also. A # for each sector loaded or something.
+        ; Shouldn't a test for CX go in here???
+        dec cx                          ; One less sector left to read
+        jz .ENDREAD                     ; Jump to the end of the precedure
+        loop .MAIN                      ; Read next sector (Back to the start)
+.ENDREAD:                       ; End of the read procedure
+        ret                     ; Return to main program
+
+I have loads of variations of this code as I slowly improved it over various versions of my bootloader.
+I suggest looing at some of my source if you want a more detailed explanation of the source and to see it in context.
+
+Once you have the data loaded you have to transfer control to it. Now as you should know if you know asm well you
+can't modify the value in the IP register directly so you have to setup the data segment registers and then jump
+to the new location.
+The jump command needed is normally:
+jmp <CS>:<IP>
+eg: jmp 0x1000:0x0000
+Normally for simple kernels you will leave the second part as 0x0000 and the first address should
+be equal to where you loaded the kernel in memory.
+
+That is all I have had time to write I am afraid. Not being paid for this :(
+I will hopefully come back and write this in a more legible form but thats in the future some time.
+
+All of my examples are cuts and pastes from various versions of my bootloader. Those is probably not
+ideal examples as I have implemented some things in odd ways. But my bootloaders does work
+which is the important thing. If you do use any of my code (no matter how small) I would
+appreciate being notified and my name mentioned with the source next to my code with a link to
+my website/details. To use any of my code in a commercial product requires my permission however!
+
+I hope this has helpped you with loading sectors directly.
+
+If this has helpped you please send me an e-mail saying so. (I like compliments)
+
+If you want to see new things in here please say, if you want to translate this into an other
+language please send me the new version so I can host that as an alternative. (I can translate
+copy's of this if requested but the altavista/google/etc translaters aren't quite perfected for
+large documents like this, and I would rather spend my time working on something else)
+
+If you change this or make a copy on your website could you please keep my details with the file
+and could you please notify to me some how.
+
+Daniel Rowell Faulkner

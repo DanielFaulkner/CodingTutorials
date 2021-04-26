@@ -1,0 +1,153 @@
+Interrupts (A software interrupt - Modifying the Interrupt Vector Table)
+
+Contents:
+* Definition of an interrupt
+* Simple idea of how they work
+* How to use them
+* How to program them
+* step by step guide
+* Small example
+
+First off what is an interrupt?
+An interrupt in a hardware sense is run when ever a piece of hardware needs something doing.
+But this only part of the definition for us as programmers. There are also software interrupts
+those are what we can play with. And what any ASM programmer will probably have used in the past.
+The software interrupts can be called by a command in a program. They are in effect a pointer
+to a block of code to carry out a specfic task.
+Eg. Printer wants more info sent to it so runs the interrupt which sends data to the printer.
+Or like MS-DOS's (and DF-DOS's) int 21 function 9. When a program wants to put a message onto
+the screen they can all an interrupt and use the OS's standard screen print code.
+So to summarise they are pointers to blocks of code in the OS that can be called by the OS or
+other programs run by the OS.
+
+How does it work?
+In principle it works like a static table of pointers. You call an interrupt and the computer
+then looks up that interrupt code in a table and then jumps to the relevant block of code in the
+OS.
+
+    |---->----Interrupt table----->-----|
+    |					|
+Your program			Operating System
+
+How do you use them?
+In assembly language you can use them simply by calling the 'int' command. Int <number>
+Eg. 'int 25'	<- On my OS and MS-DOS will read data from a location.
+So how do you pass data into an interrupt? well you pass data into it by moving all the
+information into set registers, similarly you will recieve information back in set registers.
+Those vary from command to command however, so you will have to get hold of a refence table with
+them on. (Ralf browns interrupt list)
+Sometimes you may hear functions mentioned. They are seperate from the interrupt code I will
+aim to cover. In simple terms the register AH is often used to specify a function within an
+interrupt. This is done by a set of IF style statements within the interrupt code.
+
+How do you program them?
+Well now you should be able to guess partly. Go on have a guess before I tell you ;-) .......
+Ok, right so you have the Interrupt table in a set place in the memory which is the same for
+every computer. All you should need if you understand me so far is the location of the table.
+(0000:0000) But for those of you who want more help than just the location here it is.
+The table looks something like:
+
+Location in memory: 0000,0004,0008...
+|Offset |Offset |Offset | <- Is 2 bytes long Eg: |0126|0502|	Or the easy way: |IntFunc|
+|-----------------------|			 |----|----|			 |-------|
+|Segment|Segment|Segment| <- Is 2 bytes long	 |1000|1000|...			 |CS	 |
+
+This is not very helpful if you are trying to make an interrupt I know. Well the offset and
+segments can be entered as pointers in the asm code. :-D So that makes the first part easier.
+But as you can see there is no interrupt number in the table, thats because the location in the
+table is the interrupt number. (Interrupt number times 4)
+
+So how to make this table?
+The step by step guide:
+* Make your interrupt. This is just like writing a normal function except you end it differently.
+  Instead of being called from the same segment it's being called from any where. So you have to
+  use a command similar to ret but that returns to the segment as well as the offset you came
+  from. This command is called iret. (Think of Interrupt return - iret)
+ Eg:
+ TestInt:
+	mov bx,0x1234
+	...
+	iret
+
+  It's best advised to save any registers that you aren't sending info back via on the stack and
+  restore them at the end of the procedure.
+
+* Put the address of your function into the interrupt vector table.
+  The table is in segment 0000. The offsets are below (int num * 4). Note check that you don't
+  overwrite an existing BIOS (or DOS if making a program) interrupt unless you want to change it.
+  - Interrupt:		Location:	Data inputed:	Size:
+    20			20*4		Offset		2 bytes
+			20*4+2		Segment		2 bytes
+    21			21*4		Offset		2 bytes
+			21*4+2		Segment		2 bytes
+  So now we know what to write we can get into the writing of the code itself.
+- Load into es 0000, this is the segment with the interupt table.
+ xor ax,ax
+ mov es,ax
+- Now for each interrupt we can do:
+  move into es:<int num>*4 Offset
+  move into es:<int num>*4+2 segment
+  Now the hard way would be:
+  mov [es:20*4], 0x0123
+  mov [es:20*4+2], 0x1000
+  But if you are anything like me you probably don't like messing around with maths. So why not
+  let the compiler work out the maths and you use the pointers. With a real mode kernel of the
+  sort I use and you will I hope also be making (as they are small and easy for first time
+  osdev'ers) and you could modify this for a segmented/pmode system possibly. How would you call
+  the interrupt function from where you are? What segment are you currently in (or int function
+  in if different)? In my OS and the example the answer is TestInt and the CS register.
+  So with this information you can do:
+ mov WORD [es:20*4], TestInt
+ mov WORD [es:20*4+2], CS
+  And yes this will work as the compiler will change the pointers TestInt and CS for the right
+  numbers. Make sure to include the 'WORD' part of the line else you may get un expected results.
+  As each part of the address is 2 bytes long (1 word) and you have to tell the compiler this in
+  this case.
+
+Full (though small and not really functional) example of this is below:
+
+Program.asm:
+...
+xor ax, ax	; Zero AX register (We will pretend in this program it's important AX stays 0)
+mov bx, 10	; Load 10 into BX
+mov cx, 20	; Load 20 into CX
+int 20		; Call interrupt 2
+...		; If you look at the interrupt code the registers here will be: ax-0,bx-30,cx-20
+
+Kernel.asm:
+...
+TestInt:	; The interrupt we want to setup
+ push ax	; Save the registers used by this interrupt function
+ mov ax,bx	; Move bx into ax
+ add cx		; Add cx to ax (bx+cx originally)
+ mov bx,ax	; Move ax back into bx
+ pop ax		; Restore ax
+ iret		; Interrupt return command
+
+push es		; Save es segment register
+xor ax,ax	; Zero ax
+mov es,ax	; Move 0000 into es. So loading the vector table segment.
+
+mov WORD [es:20*4], TestInt	; Move the offset into the interrupt table
+mov WORD [es:20*4+2], cs	; Move the segment into the interrupt table
+...
+
+All of my examples are from my own OS code/myself unless otherwise stated. Those are probably not
+ideal examples as I have implemented some things in odd ways. But my OS code does work
+which is the important thing. If you do use any of my code (no matter how small) I would
+appreciate being notified and my name mentioned with the source next to my code with a link to
+my website/details. To use any of my code in a commercial product requires my permission however!
+
+I hope this has helpped you with creating/modifying your own interrupt vector table.
+
+If this has helpped you please send me an e-mail saying so. (I like compliments)
+
+If you want to see new things in here please say, if you want to translate this into an other
+language please send me the new version so I can host that as an alternative. (I can translate
+copy's of this if requested but the altavista/google/etc translaters aren't quite perfected for
+large documents like this, and I would rather spend my time working on something else)
+
+If you change this or make a copy on your website could you please keep my details with the file
+and could you please notify to me some how.
+
+Daniel Rowell Faulkner
