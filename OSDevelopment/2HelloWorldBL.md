@@ -82,7 +82,7 @@ dd if=Bootloader bs=512 of=/dev/fd0
 ; Your bootloader code here  
 
 ; End boiler plate code  
-times 510-($-$$) db 0	; Fills the rest of the sector with zero's  
+times 510-($-$$) db 0 ; Fills the rest of the sector with zero's  
 dw 0xAA55             ; Add the boot loader signature to the end   
 ```
 
@@ -94,14 +94,17 @@ The comments in the code explain each line. However I will briefly go over them 
 The first 2 lines provide information the NASM compiler needs to produce a compatible executable file.  
 
 The last 2 lines are a little more confusing however.  
-times 510-($-$$) db 0  
+
+> times 510-($-$$) db 0  
+
 This can be read as: Times 510-(Start of this Instruction - Start of program) with 0's  
 $ stands for start of the instruction  
 $$ stands for start of the program   
 
 db stands for define (or declare) byte - a byte is 8 bits, a bit can be a 0 or a 1.  
 
-dw 0xAA55  
+> dw 0xAA55  
+
 This writes the boot signature, 55AA (hexadecimal), to the last two bytes of the boot sector. Without this signature the BIOS won't recognise this as a bootable disk.  
 It is written this way round as X86 computers store values using the 'Little Endian' order, essentially reversing the order however a full explanation is beyond the scope of this guide.  
 
@@ -109,12 +112,13 @@ It is written this way round as X86 computers store values using the 'Little End
 
 ## Never ending loop boot sector:
 
+```assembly
 [BITS 16]    ; 16 bit code  
 [ORG 0x7C00] ; Code origin set to 7C00  
 
-main:	     ; Main code label (Not really needed now but will be later)  
-jmp $	     ; Jump to the start of the instruction (never ending loop)  
-	     ; An alternative would be 'jmp main' that would have the same effect.  
+main:        ; Main code label (Not really needed now but will be later)  
+jmp $        ; Jump to the start of the instruction (never ending loop)  
+             ; An alternative would be 'jmp main' that would have the same effect.  
 
 ; End matter  
 times 510-($-$$) db 0  
@@ -126,26 +130,27 @@ The inline comments are fairly self explanatory, so lets continue with the next 
 
 ## Displaying a character boot loader:
 
-[BITS 16]	 ; 16 bit code generation  
-[ORG 0x7C00]	 ; ORGin location is 7C00  
+[BITS 16]      ; 16 bit code generation  
+[ORG 0x7C00]   ; ORGin location is 7C00  
 
 ;Main program  
-main:		 ; Main program label  
+main:          ; Main program label  
 
-mov ah,0x0E	 ; This number is the number of the BIOS function to run.  
-		 ;  This function places a character onto the screen  
-mov bh,0x00	 ; Page number (for our purposes leave this as zero)  
-mov bl,0x07	 ; Text attribute (Sets the background and foreground colour)  
-		 ;  07 = White text, black background.  
-		 ; (Feel free experiment with other values)  
-mov al,65	 ; This should places the ASCII value of a character into al.  
-int 0x10	 ; Call the BIOS video interrupt.  
+mov ah,0x0E    ; This number is the number of the BIOS function to run.  
+               ;  This function places a character onto the screen  
+mov bh,0x00    ; Page number (for our purposes leave this as zero)  
+mov bl,0x07    ; Text attribute (Sets the background and foreground colour)  
+               ;  07 = White text, black background.  
+               ; (Feel free experiment with other values)  
+mov al,65      ; This should places the ASCII value of a character into al.  
+int 0x10       ; Call the BIOS video interrupt.  
 
-jmp $		 ; Put the bootloader into a continuous loop to stop code execution.  
+jmp $          ; Put the bootloader into a continuous loop to stop code execution.  
 
 ; End matter  
-times 510-($-$$) db 0	; Fill the rest of the sector with zeros  
-dw 0xAA55		; Boot signature  
+times 510-($-$$) db 0 ; Fill the rest of the sector with zeros  
+dw 0xAA55             ; Boot signature  
+```
 
 This bootloader combines the previous basic bootloader with a call to an interrupt function, discussed earlier, to display a character to the screen. Once you have this working you can try different ASCII values or change the text attribute for alternative colours.  
 
@@ -158,47 +163,50 @@ If you have used assembly before you will be used to having defined text/code an
 All data and procedures must be placed where they won't be executed as part of the bootloader. This is either at the start of the boot loader, with a jmp instruction used to skip them when the boot loader starts, or at the end at a position never executed by the bootloader.  
 The choice is up to you, but I recommend using the end of the bootloader sector.  
 
+```assembly
 [BITS 16]       ; 16 bit code generation  
-[ORG 0x7C00]	; Origin of the program. (Start position)  
+[ORG 0x7C00]    ; Origin of the program. (Start position)  
 
 ; Main program  
-main:		; Put a label defining the start of the main program  
+main:           ; Put a label defining the start of the main program  
 
- call PutChar	; Run the procedure  
+ call PutChar   ; Run the procedure  
 
-jmp $		; Put the program into a never ending loop  
+jmp $           ; Put the program into a never ending loop  
 
 ; Everything here is out of the main program  
 ; Procedures  
 
-PutChar:		; Label to call procedure  
- mov ah,0x0E		; Put char function number (Teletype)  
- mov bh,0x00		; Page number  
- mov bl,0x07		; Normal attribute  
- mov al,65		; ASCII character code  
- int 0x10		; Run interrupt  
- ret			; Return to main program  
+PutChar:        ; Label to call procedure  
+ mov ah,0x0E    ; Put char function number (Teletype)  
+ mov bh,0x00    ; Page number  
+ mov bl,0x07    ; Normal attribute  
+ mov al,65      ; ASCII character code  
+ int 0x10       ; Run interrupt  
+ ret            ; Return to main program  
 
 ; This data is never run, not even as a procedure  
 ; Data  
 
-TestHugeNum dd 0x00	; This can be a very large number (1 double word)  
-			;  Upto ffffffff hex  
-TestLargeNum dw 0x00	; This can be a large number (1 word)  
-			;  Upto ffff hex  
-TestSmallNum db 0x00	; This can be a small number (1 byte)  
-			;  Upto ff hex  
+TestHugeNum dd 0x00  ; This can be a very large number (1 double word)  
+                     ;  Upto ffffffff hex  
+TestLargeNum dw 0x00 ; This can be a large number (1 word)  
+                     ;  Upto ffff hex  
+TestSmallNum db 0x00 ; This can be a small number (1 byte)  
+                     ;  Upto ff hex  
 
-TestString db 'Test String',13,10,0	; This is a string (Can be quite long)  
+TestString db 'Test String',13,10,0 ; This is a string (Can be quite long)  
 
 ; End matter  
-times 510-($-$$) db 0	; Zero's for the rest of the sector  
-dw 0xAA55		; Bootloader signature  
+times 510-($-$$) db 0 ; Zero's for the rest of the sector  
+dw 0xAA55             ; Bootloader signature  
+```
 
 This bootloader behaves in the same way as the previous example. However the code to display a character has been converted into a function and along with some (unused) values is now stored after the region of code being executed.  
 
-The main thing that will look unusual is the line:  
-TestString db 'Test String',13,10,0  
+The main thing that will look unusual is the line:
+
+> TestString db 'Test String',13,10,0  
 
 How come it is only a byte (db)?  
 Well it isn't, but TestString only stores the memory location not the data it self. And each item in the string can be stored in a byte. Think of this as TestString[byte|byte|byte...].  
@@ -213,47 +221,48 @@ The rest of the code you should recognise or understand from the comments.
 
 ## Hello World bootloader:
 
+```assembly
 [BITS 16]      ; 16 bit code generation  
 [ORG 0x7C00]   ; Origin location  
 
 ; Main program  
-main:		; Label for the start of the main program  
+main:          ; Label for the start of the main program  
 
- mov ax,0x0000	; Setup the Data Segment register. Data is located at DS:Offset.  
- mov ds,ax	; This can not be loaded directly it has to be in two steps.  
-		; 'mov ds, 0x0000' will NOT work  
+ mov ax,0x0000 ; Setup the Data Segment register. Data is located at DS:Offset.  
+ mov ds,ax     ; This can not be loaded directly it has to be in two steps.  
+               ; 'mov ds, 0x0000' will NOT work  
 
- mov si, HelloWorld	; Load the position of the string into SI.  
- call PutStr	; Call/start the procedure to display the string  
+ mov si, HelloWorld ; Load the position of the string into SI.  
+ call PutStr        ; Call/start the procedure to display the string  
 
-jmp $		; Never ending loop  
+jmp $               ; Never ending loop  
 
 ; Procedures  
-PutStr:		; Procedure label/start  
+PutStr:        ; Procedure label/start  
  ; Set up the registers for the interrupt call  
- mov ah,0x0E	; The function to display a character (teletype)  
- mov bh,0x00	; Page number  
- mov bl,0x07	; Text attribute  
+ mov ah,0x0E   ; The function to display a character (teletype)  
+ mov bh,0x00   ; Page number  
+ mov bl,0x07   ; Text attribute  
 
-.nextchar	; Internal label (needed to loop around for the next character)  
- lodsb		; I think of this as LOaD String Byte (may not be the official meaning)  
-		; Loads DS:SI into AL and increases SI by one  
+.nextchar      ; Internal label (needed to loop around for the next character)  
+ lodsb         ; I think of this as LOaD String Byte (may not be the official meaning)  
+               ; Loads DS:SI into AL and increases SI by one  
  ; Check for end of string '0'  
- or al,al	; Sets the zero flag if al = 0  
- jz .return	; If the zero flag has been set go to the end of the procedure.  
- int 0x10	; Run the BIOS video interrupt  
- jmp .nextchar	; Loop back around  
-.return		; Label at the end to jump to when the loop is complete  
- ret		; Return to main program  
+ or al,al      ; Sets the zero flag if al = 0  
+ jz .return    ; If the zero flag has been set go to the end of the procedure.  
+ int 0x10      ; Run the BIOS video interrupt  
+ jmp .nextchar ; Loop back around  
+.return        ; Label at the end to jump to when the loop is complete  
+ ret           ; Return to main program  
 
 ; Data  
 
 HelloWorld db 'Hello World',13,10,0  
 
 ; End Matter  
-times 510-($-$$) db 0	; Fill the rest with zeros  
-dw 0xAA55		; Boot loader signature  
-
+times 510-($-$$) db 0 ; Fill the rest with zeros  
+dw 0xAA55             ; Boot loader signature  
+```
 
 Congratulations! If you are following along you should now have a bootloader which can display the message 'Hello World' to the screen. From this point you can try changing the message, displaying multiple messages or changing the colour of the message.  
 
