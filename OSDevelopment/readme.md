@@ -4,7 +4,9 @@ The guides in this folder are related to the development of hobby Operating Syst
 
 A basic level of assembly code knowledge is recommended to understand the examples given in these guides.  
 
-These majority of these guides were first written around the year 2000. The code examples and tools should still work on current computers and much of the information is still relevant. However I have not been involved in the hobby Operating System development scene for some time, so further guides are unlikely to be written. Though I will attempt to maintain the current guides.
+These majority of these guides were first written around the year 2000. The code examples and tools should still work on current computers and much of the information is still relevant. However I have not been involved in the hobby Operating System development scene for some time, so further guides are unlikely to be written. Although I will attempt to maintain the current guides.
+
+Currently I am in the process of editing these to improve the grammar and to convert them to markdown format.
 
 ## Resources
 

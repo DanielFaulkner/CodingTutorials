@@ -1,287 +1,272 @@
-This tutorial is a simple walk through a hello world boot loader.
+# Bootloader basics - Hello World
 
-Terms used
-Rules
-Int 0x10 details (Teletype function)
-Boot loader installation
-Nothing boot loader (Don't copy example)
-Never ending loop boot loader
-Character on screen boot loader
-Storing data
-Displaying a string
+This tutorial walks through producing a simple Hello world boot loader.  
 
-This like any other boot loader has to obey a few rules.
+## Contents
+Glossary  
+Rules  
+Int 0x10 details (Teletype function)  
+Boot loader installation  
+Empty boot loader  
+Never ending loop boot loader  
+Displaying a character boot loader  
+Storing data  
+Hello World bootloader
 
-Terms used:
-BIOS - A chunk of code which is builtin. This tests that the hardware is present and has some functions builtin that can be called using interrupts
-Interrupts - Is a call to a builtin function/procedure
-Hexadecimal - 16base numbering system.
-	    - Refer to hex numbers in Asm by putting a 'h' after or a 0x before.
-Decimal - Normal numbering system you have most likely known for years. 10 base
+## Glossary
+BIOS - Code which is built-in to the computer. This tests that the hardware is present and has some built-in functions that can be called using interrupts.  
+Interrupts - Allows a built-in function/procedure to be called.  
+Hexadecimal - 16base numbering system. Generally indicated by putting a 'h' after the number or a 0x before.
+Decimal - Normal base 10 numbering system everyone is likely to be familiar with.  
 
-Rules:
+## Rules
+All bootloaders need to follow couple of key rules  
+
 1) It MUST be 512bytes long!
-This is because the BIOS will automaticly load the first sector of the boot disk into the memory. (Boot disk is set in the BIOS, the normal setup is to have it boot from the floppy drive and failing that the hard drive).
+This is because the BIOS will automatically load the first sector of the boot disk into the memory. (Boot disk is set in the BIOS, the normal setup is to have it boot from the floppy drive and failing that the hard drive).  
 
-2) It MUST end with the bootloader signature, '55 AA'
+2) It MUST end with the bootloader signature, '55 AA'  
 
 Where is the boot loader loaded to in memory?
-In hexadecimal it is loaded to 7C00.
-In decimal it is loaded to 31744 (I think)
-Why is this? Well the computer has a number of special things stored in the early memory which as you go on you will find out about and learn about.
-Personally I only have a vague idea myself as to what lives between 0 and 4864.
+In hexadecimal it is loaded to 7C00, 31744 in decimal.  
+Why is this? The computer has a number of items stored in early memory which, as you advance in the hobby operating system development scene, you may go to learn more about.  
 
-INT 0x10?
-INT 0x10 is the BIOS video interrupt. All the display related calls (in theory) are made through this interrupt.
-So how do you use it? Well you have to have certain values in certain registers to use it.
-AH - 0x0E <- Teletype mode (This number must be used to tell the BIOS to put a character on the screen)
-AL - ASCII character to display
-BH - Page number (For most of our work this will remain 0x00)
-BL - Text attribute (For most of our work this will remain 0x07) change the value for different colour etc.
+## INT 0x10
+INT 0x10 is the BIOS video interrupt, a function provided by the BIOS which can be called to display characters to the screen.  
 
-Then you call the interrupt once the registers are in place.
-
-Installing a boot loader?
-Well the boot loaders in this document are on the whole ok to copy and try for yourself. (Except the first example) And I don't accept any responsibility if it all goes horribly wrong. (though I hhope it doesn't and it shouldn't)
-
-Also I advise against installing the boot loader over your current hard drives boot loader (if you want to load your normal any time soon lol)
-
-So what do you need? An x86 CPU based computer. (AMD/Intel basicly, most home PC's) 286/286/486...
-And a floppy disk to install the boot sector on.
-And NASM to compile the source code.
-(NASM can be downloaded for free from there site, you should find it on all major search engines)
-An other alternative is BOCHS which is a computer enumerator, but I'll explain that in a different tutorial.
-
-Step 1. Copy/Write the boot sector to a standard text file. (.txt/.asm/.s/etc ending doesn't matter)
-Step 2. Type at the prompt: 'NASM filename.txt' this should output a compiled file
-Step 3. Check the compiled file is 512 bytes big exactly. (Won't make the PC go bang if it isn't but it won't work and it saves you a reboot if you get it right first time)
-Step 4. Install the boot loader to the first sector of the disk. (Varies per OS)
-Insert blank floppy: (formatted, and reformat before trying to write to it)
-DOS:
-DEBUG file <return>
-- w 100 0 0 1
-- q
+Using this interrupt requires some registers to be populated with the information you want to display.  
+AH - 0x0E <- Teletype mode (This number must be used to tell the BIOS to put a character on the screen)  
+AL - ASCII character to display  
+BH - Page number (For most of our work this will remain 0x00)  
+BL - Text attribute (For most of our work this will remain 0x07), change the value for different colours.  
 
-Linux:
-(Insert a floppy but don't mount it)
-dd if=Bootloader bs=512 of=/dev/fd0
+Then once the registers are populated calling the interrupt will display a character on the monitor.  
 
-Step 5. Reboot leaving the floppy in the drive. (And set the BIOS if needed to boot from 'A' drive first)
-
-Assembly language examples:
-
-Nothing boot loader:
-(Do NOT copy and run)
-
-; Start matter
-[BITS 16]	  ; Tells the compiler to make this into 16bit code generation
-		  ;  code
-[ORG 0x7C00]	  ; Origin, tells the compiler where the code is going to be
-		  ;  in memory after it has been loaded. (hex number)
+## Installing a boot loader
+**NOTE:** With the exception of the first boot loader, the code can be typed into a computer to follow along with the guide. However running all the examples is at the readers own risk.  
 
-; End matter
-times 510-($-$$) db 0	; Fill the rest of the sector with zero's
-dw 0xAA55		; Add the boot loader signature to the end
+Also, for obvious reasons I advise against installing the boot loader over your current hard drives boot loader.  
 
-Ok so what does this example do?
-Well it does nothing! At least nothing worth mentioning about.
+**Requirements:**  
+- An x86 CPU based computer (AMD or Intel).  
+- A floppy disk to install the boot sector on if you want to run this on real hardware.  
+- NASM to compile the source code. NASM can be downloaded for free from their [website](https://www.nasm.us/), and is included in most Linux distributions package repositories.  
+Their are alternatives to using a floppy disk, which are not covered here. You may also want to try testing the code in an emulator such as Bochs, which is covered in a different tutorial.  
 
-Let me explain, a lot of it you should be able to understand from the comments I've put in to the example.
-The end matter is a little confussing though.
-times 510-($-$$) db 0
-This reads: Times 510-(Start of this Instruction - Start of program) with 0's
-$ stands for start of the instruction
-$$ stands for start of the program
+**Instructions:**  
+- Step 1. Copy/Write the boot sector to a standard text file. (.txt/.asm/.s/etc ending doesn't matter)  
+- Step 2. Type at the prompt: 'NASM filename.txt' this should output a compiled file.  
+- Step 3. Check the compiled file is exactly 512 bytes.  
+- Step 4. Install the boot loader to the first sector of the disk. (Varies per OS)  
 
-db stands for define byte (I think) - a byte is 8 bits, a bit can be a 0 or a 1.
+*DOS:*  
+Insert a blank floppy disk.  
+DEBUG file <return>  
+w 100 0 0 1  
+q  
 
-dw 0xAA55
-For some reason the signature has to be written this way round!
-This fills the last to bytes of the boot loader with 55AA (this is a hex number)
-Without this signature the BIOS won't recognise this as a bootable disk!
-
-I suggest that you don't try this boot loader as it will possibly leave the boot loader and try to run instructions left in the memory.
+*Linux:*  
+Insert a floppy but don't mount it.  
+dd if=Bootloader bs=512 of=/dev/fd0  
 
-Never ending loop boot sector:
+- Step 5. Reboot leaving the floppy in the drive. If needed change the boot order in the BIOS to first boot from the floppy disk ('A') drive.  
 
-[BITS 16]    ; 16 bit code
-[ORG 0x7C00] ; Code origin set to 7C00
+## Empty boot loader:
+**Do NOT copy and run**  
 
-main:	     ; Main code label (Not really needed now but will be later)
-jmp $	     ; Jump to the start of the instruction (never ending loop)
-	     ; An alternative would be 'jmp main' that would have the exact same
-	     ;  effect.
+; Starting boiler plate code  
+[BITS 16]	  ; Informs the compiler that 16bit machine code is required.  
+[ORG 0x7C00]	  ; Origin, informs the compiler where the code is going to be loaded in memory.  
 
-; End matter
-times 510-($-$$) db 0
-dw 0xAA55
+; Your bootloader code here  
 
-So now what does this do?
-This puts the boot loader into a continuous loop.
-Is this help full? Not at all
-Will you see anything on the screen? Nope (only BIOS stuff)
+; End boiler plate code  
+times 510-($-$$) db 0	; Fills the rest of the sector with zero's  
+dw 0xAA55		; Add the boot loader signature to the end   
 
-This boot loader you can try making and running yourself, won't be very impressive or anything to write home about but no harm can come from it (in theory)
+*So what does this example do?*  
+In short, nothing. At least nothing worth mentioning.  
 
-I think this example is pretty self explanitory, so onwards to the actual boot loader.
+The comments in the code explain each line. However I will briefly go over them here.  
 
-Character on the screen boot loader:
+The first 2 lines provide information the NASM compiler needs to produce a compatible executable file.  
 
-[BITS 16]	 ; 16 bit code generation
-[ORG 0x7C00]	 ; ORGin location is 7C00
+The last 2 lines are a little more confusing however.  
+times 510-($-$$) db 0  
+This can be read as: Times 510-(Start of this Instruction - Start of program) with 0's  
+$ stands for start of the instruction  
+$$ stands for start of the program   
 
-;Main program
-main:		 ; Main program label
+db stands for define (or declare) byte - a byte is 8 bits, a bit can be a 0 or a 1.  
 
-mov ah,0x0E	 ; This number is the number of the function in the BIOS to run.
-		 ;  This function is put character on screen function
-mov bh,0x00	 ; Page number (I'm not 100% sure of this myself but it is best
-		 ;  to leave it as zero for most of the work we will be doing)
-mov bl,0x07	 ; Text attribute (Controls the background and foreground colour
-		 ;  and possibly some other options)
-		 ;  07 = White text, black background.
-		 ; (Feel free to play with this value as it shouldn't harm
-		 ;  anything)
-mov al,65	 ; This should (in theory) put a ASCII value into al to be
-		 ;  displayed. (This is not the normal way to do this)
-int 0x10	 ; Call the BIOS video interrupt.
+dw 0xAA55  
+This writes the boot signature, 55AA (hexadecimal), to the last two bytes of the boot sector. Without this signature the BIOS won't recognise this as a bootable disk.  
+It is written this way round as X86 computers store values using the 'Little Endian' order, essentially reversing the order however a full explanation is beyond the scope of this guide.  
 
-jmp $		 ; Put it into a coninuous loop to stop it running off into
-		 ;  the memory running any junk it may find there.
+***I suggest that you don't try this boot loader as there is no code to execute, which could result in unexpected or undesirable behaviour.***  
 
-; End matter
-times 510-($-$$) db 0	; Fill the rest of the sector with zeros
-dw 0xAA55		; Boot signature
+## Never ending loop boot sector:
 
-This code should be self explanitory again.
-What does it do? Well now you will see a character appear on the screen!
+[BITS 16]    ; 16 bit code  
+[ORG 0x7C00] ; Code origin set to 7C00  
 
-But this isn't exactly useful as you would be coding for hours on end with an ASCII code typed in for each character and a new call to the interrupt each time.
-So hence we move on to the next section.
+main:	     ; Main code label (Not really needed now but will be later)  
+jmp $	     ; Jump to the start of the instruction (never ending loop)  
+	     ; An alternative would be 'jmp main' that would have the same effect.  
 
-Storing data:
+; End matter  
+times 510-($-$$) db 0  
+dw 0xAA55  
 
-If you have used assembly before you will be used to text/code and data sections.
-Well in the boot loader we don't have those.
-
-So where do we put the data?
-Well we find some place that won't be run as part of the program and put the data there. (and procedures)
-This is either at the start of the boot loader with a jmp instruction used to skip them when the boot loader starts.
-Or at the end where the boot loader never gets to.
-(The choice is up to you, but I advise the end as special tables go at the start if you ever get that far in boot loader work)
+This bootloader puts the computer into a continuous loop. Which is not useful in any way and will display nothing, except any remaining BIOS booting messages. However, this boot loader is safe to try making and running yourself.  
 
-[BITS 16]       ; 16 bit code generation
-[ORG 0x7C00]	; Origin of the program. (Start position)
+The inline comments are fairly self explanatory, so lets continue with the next boot loader.  
 
-; Main program
-main:		; Put a label defining the start of the main program
+## Displaying a character boot loader:
 
- call PutChar	; Run the procedure
+[BITS 16]	 ; 16 bit code generation  
+[ORG 0x7C00]	 ; ORGin location is 7C00  
 
-jmp $		; Put the program into a never ending loop
+;Main program  
+main:		 ; Main program label  
 
-; Everything here is out of the main program
-; Procedures
+mov ah,0x0E	 ; This number is the number of the BIOS function to run.  
+		 ;  This function places a character onto the screen  
+mov bh,0x00	 ; Page number (for our purposes leave this as zero)  
+mov bl,0x07	 ; Text attribute (Sets the background and foreground colour)  
+		 ;  07 = White text, black background.  
+		 ; (Feel free experiment with other values)  
+mov al,65	 ; This should places the ASCII value of a character into al.  
+int 0x10	 ; Call the BIOS video interrupt.  
 
-PutChar:		; Label to call procedure
- mov ah,0x0E		; Put char function number (Teletype)
- mov bh,0x00		; Page number (Ignore for now)
- mov bl,0x07		; Normal attribute
- mov al,65		; ASCII character code
- int 0x10		; Run interrupt
- ret			; Return to main program
+jmp $		 ; Put the bootloader into a continuous loop to stop code execution.  
 
-; This data is never run, not even as a procedure
-; Data
+; End matter  
+times 510-($-$$) db 0	; Fill the rest of the sector with zeros  
+dw 0xAA55		; Boot signature  
 
-TestHugeNum dd 0x00	; This can be a huge number (1 double word)
-			;  Upto ffffffff hex
-TestLargeNum dw 0x00	; This can be a nice large number (1 word)
-			;  Upto ffff hex
-TestSmallNum db 0x00	; This can be a small number (1 byte)
-			;  Upto ff hex
+This bootloader combines the previous basic bootloader with a call to an interrupt function, discussed earlier, to display a character to the screen. Once you have this working you can try different ASCII values or change the text attribute for alternative colours.  
 
-TestString db 'Test String',13,10,0	; This is a string (Can be quite long)
+However, duplicating this for each character you want to display is impractical. So the next couple of bootloader examples move onto storing and displaying a string.  
 
-; End matter
-times 510-($-$$) db 0	; Zero's for the rest of the sector
-dw 0xAA55		; Bootloader signature
+## Storing data:
 
-This boot sector should be safe to copy and run also.
-What does it do? The exact same as before except I have put some values into memory, and put the code that puts a character on the screen into a procedure.
+If you have used assembly before you will be used to having defined text/code and data sections. Unfortunately this is handled differently in the boot loader.  
 
-The main thing that will look unusual is the line:
-TestString db 'Test String',13,10,0
+All data and procedures must be placed where they won't be executed as part of the bootloader. This is either at the start of the boot loader, with a jmp instruction used to skip them when the boot loader starts, or at the end at a position never executed by the bootloader.  
+The choice is up to you, but I recommend using the end of the bootloader sector.  
 
-How come it is only a byte (db)?
-Well it isn't, but TestString only stores the memory location not the data it self. And the memory location of the string can be stored in a byte.
+[BITS 16]       ; 16 bit code generation  
+[ORG 0x7C00]	; Origin of the program. (Start position)  
 
-Whats with the numbers at the end?
-13 - ASCII for Character Return
-10 - ASCII for New Line
-(Character Return and New Line together makes the next text start on the next line)
-0 - Does nothing but will be used later as a marker for the end of the string
+; Main program  
+main:		; Put a label defining the start of the main program  
 
+ call PutChar	; Run the procedure  
 
-The rest of the code you should recognise or understand from the comments.
+jmp $		; Put the program into a never ending loop  
 
-Displaying the whole string:
+; Everything here is out of the main program  
+; Procedures  
 
-[BITS 16]      ; 16 bit code generation
-[ORG 0x7C00]   ; Origin location
+PutChar:		; Label to call procedure  
+ mov ah,0x0E		; Put char function number (Teletype)  
+ mov bh,0x00		; Page number  
+ mov bl,0x07		; Normal attribute  
+ mov al,65		; ASCII character code  
+ int 0x10		; Run interrupt  
+ ret			; Return to main program  
 
-; Main program
-main:		; Label for the start of the main program
+; This data is never run, not even as a procedure  
+; Data  
 
- mov ax,0x0000	; Setup the Data Segment register
-		; Location of data is DS:Offset
- mov ds,ax	; This can not be loaded directly it has to be in two steps.
-		; 'mov ds, 0x0000' will NOT work due to limitations on the CPU
+TestHugeNum dd 0x00	; This can be a very large number (1 double word)  
+			;  Upto ffffffff hex  
+TestLargeNum dw 0x00	; This can be a large number (1 word)  
+			;  Upto ffff hex  
+TestSmallNum db 0x00	; This can be a small number (1 byte)  
+			;  Upto ff hex  
 
- mov si, HelloWorld	; Load the string into position for the procedure.
- call PutStr	; Call/start the procedure
+TestString db 'Test String',13,10,0	; This is a string (Can be quite long)  
 
-jmp $		; Never ending loop
+; End matter  
+times 510-($-$$) db 0	; Zero's for the rest of the sector  
+dw 0xAA55		; Bootloader signature  
 
-; Procedures
-PutStr:		; Procedure label/start
- ; Set up the registers for the interrupt call
- mov ah,0x0E	; The function to display a chacter (teletype)
- mov bh,0x00	; Page number
- mov bl,0x07	; Normal text attribute
+This bootloader behaves in the same way as the previous example. However the code to display a character has been converted into a function and along with some (unused) values is now stored after the region of code being executed.  
 
-.nextchar	; Internal label (needed to loop round for the next character)
- lodsb		; I think of this as LOaD String Block
-		; (Not sure if thats the real meaning though)
-		; Loads [SI] into AL and increases SI by one
- ; Check for end of string '0'
- or al,al	; Sets the zero flag if al = 0
-		; (OR outputs 0's where there is a zero bit in the register)
- jz .return	; If the zero flag has been set go to the end of the procedure.
-		; Zero flag gets set when an instruction returns 0 as the answer.
- int 0x10	; Run the BIOS video interrupt
- jmp .nextchar	; Loop back round tothe top
-.return		; Label at the end to jump to when complete
- ret		; Return to main program
+The main thing that will look unusual is the line:  
+TestString db 'Test String',13,10,0  
 
-; Data
+How come it is only a byte (db)?  
+Well it isn't, but TestString only stores the memory location not the data it self. And each item in the string can be stored in a byte. Think of this as TestString[byte|byte|byte...].  
 
-HelloWorld db 'Hello World',13,10,0
+The numbers at the end of the string are special characters.  
+13 - ASCII for Character Return  
+10 - ASCII for New Line  
+(Character Return and New Line together makes the next string start on a new line)  
+0 - Does nothing but will be used later as a marker for the end of the string  
 
-; End Matter
-times 510-($-$$) db 0	; Fill the rest with zeros
-dw 0xAA55		; Boot loader signature
+The rest of the code you should recognise or understand from the comments.  
 
+## Hello World bootloader:
 
-Ok now this will put 'Hello World' on the screen.
-Thats right if you haev been following this tutorial you have just done it!
-(Yes you may now celebrate)
+[BITS 16]      ; 16 bit code generation  
+[ORG 0x7C00]   ; Origin location  
 
-The last bit was a bit of a jump with loops and things there. So if you want to go back and look at that last section again, please do, you need to be able to understand this before moving on.
+; Main program  
+main:		; Label for the start of the main program  
 
-I hope this tutorial has helpped you to understand the basics of boot sectors.
+ mov ax,0x0000	; Setup the Data Segment register. Data is located at DS:Offset.  
+ mov ds,ax	; This can not be loaded directly it has to be in two steps.  
+		; 'mov ds, 0x0000' will NOT work  
 
-If you translate or change the tutorial please get in contact with me withthe modified version, if you feel there is something I should mention or change please again get in contact.
-If you copy this tutorial and add it to a website please include this message and a link to my website.
+ mov si, HelloWorld	; Load the position of the string into SI.  
+ call PutStr	; Call/start the procedure to display the string  
 
-Daniel Rowell Faulkner
+jmp $		; Never ending loop  
+
+; Procedures  
+PutStr:		; Procedure label/start  
+ ; Set up the registers for the interrupt call  
+ mov ah,0x0E	; The function to display a character (teletype)  
+ mov bh,0x00	; Page number  
+ mov bl,0x07	; Text attribute  
+
+.nextchar	; Internal label (needed to loop around for the next character)  
+ lodsb		; I think of this as LOaD String Byte (may not be the official meaning)  
+		; Loads DS:SI into AL and increases SI by one  
+ ; Check for end of string '0'  
+ or al,al	; Sets the zero flag if al = 0  
+ jz .return	; If the zero flag has been set go to the end of the procedure.  
+ int 0x10	; Run the BIOS video interrupt  
+ jmp .nextchar	; Loop back around  
+.return		; Label at the end to jump to when the loop is complete  
+ ret		; Return to main program  
+
+; Data  
+
+HelloWorld db 'Hello World',13,10,0  
+
+; End Matter  
+times 510-($-$$) db 0	; Fill the rest with zeros  
+dw 0xAA55		; Boot loader signature  
+
+
+Congratulations! If you are following along you should now have a bootloader which can display the message 'Hello World' to the screen. From this point you can try changing the message, displaying multiple messages or changing the colour of the message.  
+
+This last example introduced a few new assembly commands. If you are not familiar with assembly this bootloader is combining the lodsb instruction with a loop to create a basic 'print' function.  
+- Ensure the registers DS:SI contains the location of the string.
+- Setup the register values for calling Interrupt 10.
+- Start loop:
+- - Load the byte (character) at position DS:SI into the register AL and increment SI by 1 (lodsb).
+- - Set the zero flag if the byte just loaded was a zero (or).
+- - - If the zero flag is set jump to the end of the function (jz).
+- - Display the character in register AL to the screen (int 0x10).
+- - Loop back to the start (jmp).
+
+I hope this tutorial has helped you to understand the basics of boot sectors.  
+
+## Author  
+Written by Daniel Rowell Faulkner.  
+All code and terminal commands are run at the readers own risk.  
