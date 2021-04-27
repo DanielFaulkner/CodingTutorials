@@ -26,7 +26,7 @@ Because only the first 512bytes of a disk (or image) is read by the BIOS when bo
 
 *NOTE: On smaller hobby Operating Systems without a file system the second stage bootloader may be replaced with the kernel.*  
 
-**Install a kernel:**
+**Install a kernel:**  
 mkdir Temp  
 sudo mount -o loop floppy.img Temp  
 sudo cp kernel.com Temp  
