@@ -123,6 +123,7 @@ jmp $        ; Jump to the start of the instruction (never ending loop)
 ; End matter  
 times 510-($-$$) db 0  
 dw 0xAA55  
+```
 
 This bootloader puts the computer into a continuous loop. Which is not useful in any way and will display nothing, except any remaining BIOS booting messages. However, this boot loader is safe to try making and running yourself.  
 
@@ -130,6 +131,7 @@ The inline comments are fairly self explanatory, so lets continue with the next 
 
 ## Displaying a character boot loader:
 
+```assembly
 [BITS 16]      ; 16 bit code generation  
 [ORG 0x7C00]   ; ORGin location is 7C00  
 
