@@ -76,14 +76,14 @@ dd if=Bootloader bs=512 of=/dev/fd0
 
 ```assembly
 ; Starting boiler plate code  
-[BITS 16]			; Informs the compiler that 16bit machine code is required.  
-[ORG 0x7C00]	; Origin, informs the compiler where the code is going to be loaded in memory.  
+[BITS 16]       ; Informs the compiler that 16bit machine code is required.  
+[ORG 0x7C00]    ; Origin, informs the compiler where the code is going to be loaded in memory.  
 
 ; Your bootloader code here  
 
 ; End boiler plate code  
-times 510-($-$$) db 0		; Fills the rest of the sector with zero's  
-dw 0xAA55								; Add the boot loader signature to the end   
+times 510-($-$$) db 0	; Fills the rest of the sector with zero's  
+dw 0xAA55             ; Add the boot loader signature to the end   
 ```
 
 *So what does this example do?*  
