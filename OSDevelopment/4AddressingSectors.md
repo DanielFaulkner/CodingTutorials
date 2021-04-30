@@ -8,7 +8,7 @@ Introduction
 Equations  
 LBA to CHS Assembly Example  
 Introduction  Stacking - Creating a place to store values temporarily  
-Actual Assembly example  
+Complete bootloader example  
 
 ## Introduction  
 A (mechanical) physical drive is made up of a magnetic platter (or disk) which stores the information and heads to read the information from the disk. To access data from the drive the BIOS needs to be informed where to position the head, and which head to use. This is the basis of the CHS address system.  
@@ -57,6 +57,7 @@ Regardless of which variation you use the results should be the same.
 ## LBA to CHS Assembly Example
 This is a functional snippet of assembly code, written for readability. However your final LBA to CHS function is likely to look quite different.  
 
+```assembly
 ; Basic LBA to CHS conversion  
 jmp LBACHS               ; Define constants in a region that is not executed  
 SectorsPerTrack  dw  18  ; Sectors per track  
@@ -85,6 +86,7 @@ MOV [Sector], dx         ; Store the value into the Sector variable
 ; Head  
 DIV [NumberOfHeads]      ; ax still contains the track number (quotient) from the previous division  
 MOV [Head], dx           ; Move the remainder value into the Head variable  
+```
 
 This example makes use of the mathematical operators MUL and DIV to perform multiplications and division. These instructions act on the value in the register ax (arithmetic register), using the register or value provided. The result of the multiplication, and the  quotient of the division are stored back into ax. With the remainder of the division stored in dx. If you need to perform multiple calculations on the same input ensure you copy the result from ax and reset ax to the starting value for each maths instruction.  
 
@@ -135,19 +137,20 @@ This is a very stylised example, showing a small empty stack and a stack with tw
 
 **Setting up the stack:**  
 
-
+```assembly
 CLI             ; Clear interrupts while we setup a stack  
 MOV ax,0x0000   ; Set a location for the stack segment  
 MOV ss,ax       ; Remember the segment registers can't handle immediate data  
 MOV sp,0xffff   ; Use the whole segment (by starting at the end)  
 STI             ; Turn the interrupts back on  
-
+```
 
 In the example given above instructions CLI and STI are used to turn off and start the interrupts. This is likely not required, but is sometimes seen added to ensure an interrupt isn't trying to access the stack while it is being changed. Then the stack segment is set to 0x0000 and the stack pointer to the last position possible, 0xffff.  
 
 **Other considerations:**  
 For our basic bootloader this is all that is required. However when writing your kernel if you are loading a lot to data into memory or onto the stack you might be concerned about the data and stack overlapping. One option is to increase the stack segment to point to a position higher in the memory, however this may make storing and retrieving memory addresses (pointers) more complicated due to the differences between the data and segment stack values. An alternative is to reserve some space using the RESB <number of bytes> instruction, as below.  
 
+```assembly
 MOV AX, 0x0000       ; Setup the data and stack segments to the same value.
 MOV DS. AX           ;
 CLI                  ; Stop interrupts  
@@ -157,121 +160,167 @@ STI                  ; Start interrupts
 StackEnd:            ; End of stack (lower memory address)  
 RESB 4096            ; 4096 reserved bytes  
 StackStart:          ; Start of stack (higher memory address)  
+```
 
 Using this arrangement you can ensure the memory space is reserved for the stack, providing it doesn't grow larger than the reserved space.  
 
-## Advanced Assembly Example
-(This will most likely work, but like any of my code I can't say for certain, being to lazy to test it at the time of writing this tutorial)
+## Complete bootloader example  
 
-; Compile using NASM compiler (Again look for it using a search engine)
-; Input: ax - LBA value
-; Output: ax - Sector
-;	  bx - Head
-;	  cx - Cylinder
+Here is a complete, if minimal, bootloader implementing the LBA to CHS formula. Including the use of a stack for storing variables temporarily.  
 
-LBACHS:
- PUSH dx			; Save the value in dx
- XOR dx,dx			; Zero dx
- MOV bx, [SectorsPerTrack]	; Move into place STP (LBA all ready in place)
- DIV bx				; Make the divide (ax/bx -> ax,dx)
- inc dx				; Add one to the remainder (sector value)
- push dx			; Save the sector value on the stack
+```assembly
+[BITS 16]      ; 16 bit code generation  
+[ORG 0x7C00]   ; Origin location  
 
- XOR dx,dx			; Zero dx
- MOV bx, [NumHeads]		; Move NumHeads into place (NumTracks all ready in place)
- DIV bx				; Make the divide (ax/bx -> ax,dx)
+; Main program  
 
- MOV cx,ax			; Move ax to cx (Cylinder)
- MOV bx,dx			; Move dx to bx (Head)
- POP ax				; Take the last value entered on the stack off.
-				; It doesn't need to go into the same register.
-				; (Sector)
- POP dx				; Restore dx, just in case something important was
-				; originally in there before running this.
- RET				; Return to the main function
+; Setup the data segment  
+MOV ax,0x0000   ; Set a location for the data and stack segments  
+MOV ds, ax      ; Copy this location to the data segment  
 
+; Setup the stack to enable use of the PUSH and POP instructions  
+CLI             ; Clear interrupts while we setup a stack  
+MOV ss,ax       ; Remember the segment registers can't handle immediate data  
+MOV sp,0xffff   ; Use the whole segment (by starting at the end)  
+STI             ; Turn the interrupts back on  
 
-I hope this has helpped anyone with LBA to CHS translation.
+; Load a sector into memory using the LBA to CHS function  
 
-If this has helpped you please send me an e-mail saying so. (I like compliments)
+MOV ax, [LBA]            ; Move the LBA address to ax  
+CALL LBAtoCHS            ; Change the LBA addressing to CHS addressing  
+                         ;  Sets CL, CH and DH  
+MOV bx, 0x2000           ; Segment location to read into  
+MOV es, bx               ; This value cannot be loaded directly in the es register  
+MOV bx, 0                ; Offset to read into  
+MOV ah, 02               ; BIOS read sector function  
+MOV al, 01               ; Read one sector  
+MOV dl,	[DriveNumber]    ; Drive to read  
+INT 0x13                 ; Make the call to BIOS interrupt 0x13  
 
-If you want to see new things in here please say, if you want to translate this into an other language please send me the new version so I can host that as an alternative. (I can translate copy's of this if requested but the altavista translater isn't quite perfected for large documents like this, and I would rather spend my time working on something else)
+; Configure the registers and execute the loaded code  
+MOV ax, 0x2000     ; Update the data segment register  
+MOV ds, ax         ;  which cannot be performed directly  
+JMP 0x2000:0x0000  ; CS becomes 0x2000 and IP becomes 0x0000.  
 
-If you change this or make a copy on your website could you please keep my details with the file and could you please mention it to me some how.
+; Procedures  
 
-Daniel Rowell Faulkner
+; LBA to CHS converter  
+; Input:  ax - LBA address  
+; Output: cl - Sector  
+;	        dh - Head  
+;	        ch - Cylinder  
 
+LBACHS:  
+ PUSH bx                  ; Copy the contents of bx to the stack to preserve the register state  
+ MOV dx,bx                ; Store the LBA number in bx while using ax for a multiplication  
+ ; Calculate the cylinder  
+ MOV ax, [NumberOfHeads]  ; Calculate the sectors per cylinder  
+ MUL [SectorsPerTrack]    ;  Multiples the provided value by the value in ax, storing the result in ax  
+ DIV bx                   ; Divide LBA by the sectors per cylinder to calculate the cylinder value  
+                          ;  DIV stores the quotient in ax - Which is our cylinder number  
+ MOV ch, al               ; Store the lower byte, containing the cylinder number in ch  
 
-###FROM Loading Sectors tutorial
-## A complete example of such a procedure is:
-; Load kernel procedure
-LoadKern:
-        mov ah, 0x02    ; Read Disk Sectors
-        mov al, 0x01    ; Read one sector only (512 bytes per sector)
-        mov ch, 0x00    ; Track 0
-        mov cl, 0x02    ; Sector 2
-        mov dh, 0x00    ; Head 0
-        mov dl, 0x00    ; Drive 0 (Floppy 1) (This can be replaced with the value in BootDrv)
-        mov bx, 0x2000  ; Segment 0x2000
-        mov es, bx      ;  again remember segments bust be loaded from non immediate data
-        mov bx, 0x0000  ; Start of segment - offset value
-.readsector
-        int 0x13        ; Call BIOS Read Disk Sectors function
-        jc .readsector  ; If there was an error, try again
+ ; Calculate the head and sector (which start with the same division)  
+ MOV ax, bx               ; Move the LBA value into the arithmetic register, ax  
+ DIV [SectorsPerTrack]    ; LBA/SectorsPerTrack = Track number (ax) and Sector number (dx)  
 
-        mov ax, 0x2000  ; Set the data segment register
-        mov ds, ax      ;  to point to the kernel location in memory
+ ; Sector  
+ INC dx                   ; Add 1 to the remainder of the division, stored in dx  
+ MOV cl, dl               ; Store the value into the cl register  
 
-        jmp 0x2000:0x0000       ; Jump to the kernel
+ ; Head  
+ DIV [NumberOfHeads]      ; ax still contains the track number (quotient) from the previous division  
+ MOV dh, dl               ; Move the remainder value into the register dl  
 
-A complete example of a procedure including the LBA to CHS code (that procedure is in that tutorial for details on it, though this does use a different version of that procedure):
-; Procedure ReadSectors - Reads sectors from the disk.
-;  Input: cx - Number of sectors; ax - Start position
-;  Output: Loaded file into: es:bx
+ POP bx                   ; Restore the value in bx  
+ RET                      ; Return to the main program  
 
-ReadSectors:
-.MAIN:                          ; Main Label
-        mov di, 5               ; Loop 5 times max!!!
-.SECTORLOOP:
-        push ax                 ; Save register values on the stack
-        push bx
-        push cx
-        call LBAtoCHS             ; Change the LBA addressing to CHS addressing
-        ; The code to read a sector from the floppy drive
-        mov ah, 02              ; BIOS read sector function
-        mov al, 01              ; read one sector
-        mov ch, BYTE [absoluteTrack]    ; Track to read
-        mov cl, BYTE [absoluteSector]   ; Sector to read
-        mov dh, BYTE [absoluteHead]     ; Head to read
-        mov dl, BYTE [BootDrv]          ; Drive to read
-        int 0x13                ; Make the BIOS call
-        jnc .SUCCESS
-        dec di                  ; Decrease the counter
-        pop cx                  ; Restore the register values
-        pop bx
-        pop ax
-        jnz .SECTORLOOP         ; Try the command again incase the floppy drive is being annoying
-        call ReadError          ; Call the error command in case all else fails
-.SUCCESS
-        pop cx                  ; Restore the register values
-        pop bx
-        pop ax
-        add bx, WORD [BytesPerSector]   ; Queue next buffer (Adjust output location so as to not over write the same area again with the next set of data)
-        inc ax                          ; Queue next sector (Start at the next sector along from last time)
-        ; I think I may add a status bar thing also. A # for each sector loaded or something.
-        ; Shouldn't a test for CX go in here???
-        dec cx                          ; One less sector left to read
-        jz .ENDREAD                     ; Jump to the end of the precedure
-        loop .MAIN                      ; Read next sector (Back to the start)
-.ENDREAD:                       ; End of the read procedure
-        ret                     ; Return to main program
+; Data  
 
+SectorsPerTrack  dw  18  ; Sectors per track  
+NumberOfHeads    dw  2   ; Number of heads (2 for a double sided floppy)  
+DriveNumber      db  0   ; Drive to load the sector from    
+LBA              dw  1   ; The logical sector address to access  
+                         ; A word is used as there are 2880 sectors to a floppy disk, more than a byte can address  
 
-				In order to use that you put the code into a loop and read one sector at a time like so:
-				Get and set output location in memory,get start location,get number of sectors to load.
-				Loop 'number of sectors to load' times:
-				Run LBA to CHS (to convert the sector number in a head and cylinder)
-				Run int 0x13 to load the sector from the LBA to CHS outputed data.
-				Increase bx by the number of bytes per sector (512) ready for next sector.
+; End Matter  
+times 510-($-$$) db 0 ; Fill the rest with zeros  
+dw 0xAA55             ; Boot loader signature  
+```
 
-				This code is often best put into a procedure and called as needed to load sectors off a floppy disk.
+The function used here for the LBA to CHS conversion is slightly different from the simple example first introduced, storing the values directly into the correct registers for interrupt 0x13. This makes use of the stack to preserve the value in bx, not essential in this situation but good practice. Some of the move instructions may look different as instead of storing the entire register (ax,bx etc.) only the lower byte of the register is being stored (al,bl etc.).  
+
+## Error checking  
+
+When reading from physical floppy drives on occasion it's possible the sector won't be read correctly from the floppy disk. This is indicated by interrupt 0x13 returning the carry flag, which allows you to handle the error by attempting to read the disk sector again. A short code snippet is included below.  
+
+```assembly
+...
+readsector:
+INT 0x13         ; Call to interuppt 0x13 to read a sector from the drive  
+JC readsector    ; If the carry flag has been set by INT 0x13 retry  
+...
+```
+
+However with this short example it is possible the code could end up stuck in a loop in the case of a drive error. To work around this you could set a counter and break out of the loop to handle the error after a preset number of attempts.  
+
+```assembly
+...
+INT 0x13         ; Call to interuppt 0x13 to read a sector from the drive  
+JC readerror     ; If the carry flag has been set by INT 0x13 retry  
+...
+readerror:       ; Handle read errors  
+ PUSH di         ; Using the DI register as unused by INT 0x13, but preserving any values within  
+ MOV di, 5       ; Number of attempts to try
+ .readloop       
+  INT 0x13       ; Try to read the sector again  
+  JNC .success   ; If there is a success go to the end of the function  
+  DEC di         ; Else decrease the counter in di  
+  JZ .fail       ; If the counter reaches zero and the Zero flag is set go to the failure code  
+  JMP .readloop  ; Return to the start of the read loop  
+ .fail
+  ; Add any error handling or error message processing here
+ .success
+  POP di         ; Restore the di register  
+  RET            ; Return to the main program  
+```
+
+This extended error checking example will try 5 times to run INT 0x13 before giving up.  
+
+These examples are all based around loading a single sector. If you are loading multiple sectors and want to apply this read error handling to each sector you could combine all of the above examples, into a loop incrementing the LBA address by one, the memory destination by 512 and decreasing the remaining sectors to load by one on each iteration of the loop.  
+
+```assembly
+...
+; Setup registers as per the previou complete example  
+; Including: bx = destination offset in memory, ax = logical address
+; This example will store the number sectors to load in cx  
+MOV cx, 5                      ; Number of sectors to load can instead be stored in cx  
+CALL readsectors               ; Replace the call to INT 0x13 with a function call  
+...
+readsectors:                   ; Function to handle reads from multiple sectors  
+ .start
+  PUSH cx                       ; Keep a record of the number of sectors to load
+  PUSH ax                       ; Keep a record of the starting logical address  
+  CALL LBAtoCHS                 ; Convert from logical to CHS addressing  
+  MOV ah, 02                    ; Function to read a sector  
+  MOV al, 01                    ; Only read one sector  
+  INT 0x13                      ; Call to interrupt 0x13  
+  JC readerror                  ; Handle any errors from the interrupt
+  POP ax                        ; Restore the logical address
+  POP cx                        ; Restore the number of sectors remaining  
+  DEC cx                        ; Decrease the counter  
+  JZ .end                       ; If the counter reaches zero end  
+  INC ax                        ; Else: Increment the logical address  
+  ADD bx,[BytesPerSector]       ; Increase the memory address for the next sector  
+  JMP .start
+ .end
+  RET                          ; Return to the main program  
+
+BytesPerSector dw 512          ; Sector size in bytes
+```
+
+Combining the code snippets in this section with the previously given complete example should enable the creation of a robust method for reading data from a disk drive.  
+
+## Author  
+Written by Daniel Rowell Faulkner.  
+All code and terminal commands are run at the readers own risk.  
