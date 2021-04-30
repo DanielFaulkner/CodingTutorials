@@ -266,8 +266,6 @@ times 510-($-$$) db 0 ; Fill the rest with zeros
 dw 0xAA55             ; Boot loader signature  
 ```
 
-Congratulations! If you are following along you should now have a bootloader which can display the message 'Hello World' to the screen. From this point you can try changing the message, displaying multiple messages or changing the colour of the message.  
-
 This last example introduced a few new assembly commands. If you are not familiar with assembly this bootloader is combining the lodsb instruction with a loop to create a basic 'print' function.  
 - Ensure the registers DS:SI contains the location of the string.
 - Setup the register values for calling Interrupt 10.
@@ -277,6 +275,10 @@ This last example introduced a few new assembly commands. If you are not familia
 - - - If the zero flag is set jump to the end of the function (jz).
 - - Display the character in register AL to the screen (int 0x10).
 - - Loop back to the start (jmp).
+
+Another change in this version is the setting of the Data Segment, ds, register. This is now required as many instructions, such as lodsb, when retrieving data from memory use the Data Segment to identify where in memory the the information is being stored (DS+Offset). Setting this to 0x0000 ensures the data defined within the code file is accessible.  
+
+Congratulations! If you are following along you should now have a bootloader which can display the message 'Hello World' to the screen. From this point you could try changing the message, displaying multiple messages or changing the colour of the message.  
 
 I hope this tutorial has helped you to understand the basics of boot sectors.  
 

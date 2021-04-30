@@ -12,10 +12,11 @@ Logical Block Addressing. This addressing system numbers each sector from 1 onwa
 Cylinder, Head and Sector addressing. This is a form of physically addressing the disk and is how the BIOS function interacts with the disk drive. However this requires an understanding of how the disk is constructed. How many sectors to a cylinder and how many heads etc.  
 CHS addressing can be broken down into:  
 - Sector = Block of data on the disk, other terms for this is a segment or track. This indicates where the disk should be rotated to.  
-- Cylinder = This is a track on the disk, and represents how far in or out from the centre the data is.  
+- Cylinder = This is represents how far in or out from the centre the data is.  
 - Head = Which side of the disk the data is located. On hard drives their maybe multiple disk platters.  
+*Note: Another common term is tracks. This is the data present in at a cylinder position that can be accessed by one head.*  
 
-Our floppy disk contains sectors of 512bytes, there are 18 sectors to a cylinder, 80 cylinders to a head and 2 heads.  
+Our floppy disk contains sectors of 512bytes, there are 18 sectors to a track, 2 tracks to a cylinder accessed using 2 heads and 80 cylinders (head positions).  
 
 This makes addressing the first 18 sectors reasonably easy as we are loading from the first cylinder and head and only incrementing the sector number. This allows smaller hobby operating systems which use less than 18 sectors to ignore the challenges of physical addressing, though it is not recommended.  
 
@@ -81,13 +82,13 @@ Normally for simple kernels you will leave the second part as 0x0000 and the fir
 ; Load a sector into memory  
 mov bx, 0x2000  ; Segment location to read into  
 mov es, bx      ; This value cannot be loaded directly in the es register  
-mov bx, 0	      ; Offset to read into  
+mov bx, 0       ; Offset to read into  
 mov ah, 02      ; BIOS read sector function  
 mov al, 01      ; Read one sector  
-mov cl,	02		  ; Sector to read  
-mov ch,	01		  ; Track to read  
-mov dh,	01		  ; Head to read  
-mov dl,	00		  ; Drive to read  
+mov cl,	02      ; Sector to read  
+mov ch,	01      ; Track to read  
+mov dh,	01      ; Head to read  
+mov dl,	00      ; Drive to read  
 int 0x13        ; Make the call to BIOS interrupt 0x13  
 
 ; Configure the registers and execute the loaded code  
