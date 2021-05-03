@@ -1,51 +1,63 @@
-FAT12 notes:
+# Using the FAT12 filesystem (readonly)  
 
-A FAT12 bootloader steps:
--------------------------
-* A FAT12 formatted floppy! (Done easily using DOS/Linux etc)
-* FAT12 table details
-* Calculate some important FAT values:
-- Root Directory Size - (Number of Root Entries * Bytes per entry) / Bytes per sector
-- Root Directory Start Location - Reserved sectors + Fat sectors
-- Data start location - Reserved sectors + FAT sectors + Root size
-* Load the root directory into memory
-* Scan through the root directory until the image is found (by 11 digit name)
-* FAT calculations
-- Work out FAT size - Total FATs * Sectors per FAT
-- Work out FAT start location - Number of reserved Sectors
-* Load FAT into memory
-* Aquire the FAT cluster based kernel location (using the root dir search as a pointer to the FAT)
-* Convert the FAT cluster address to LBA logical sector address
-* Convert the LBA logical sector address to CHS hard ware based address
-* Load kernel into memory
+# REWRITE AND CONVERSION TO MARKDOWN SYNTAX IN PROGRESS  
 
-Now in more depth:
-------------------
+## FAT12 bootloader steps:  
 
-FAT formatted floppy disk:
-To start with the floppy disk you choose to install the FAT12 boot loader to should first be
-formatted using FAT12. This is the default for DOS (and common standard in most other Operating
-Systems). From DOS just type "format a:" while a blank or unimportant floppy disk is in the
-floppy drive.
+- Disk preparation  
+- Making your drive FAT12 compatible  
+- Calculate some important FAT values:  
+- - Root Directory Size - (Number of Root Entries * Bytes per entry) / Bytes per sector  
+- - Root Directory Start Location - Reserved sectors + Fat sectors  
+- - Data start location - Reserved sectors + FAT sectors + Root size  
+- Load the root directory into memory  
+- Scan through the root directory until the image is found (by 11 digit name)  
+- FAT calculations  
+- - Work out FAT size - Total FATs * Sectors per FAT  
+- - Work out FAT start location - Number of reserved Sectors  
+- Load FAT into memory  
+- Aquire the FAT cluster based kernel location (using the root dir search as a pointer to the FAT)  
+- Convert the FAT cluster address to LBA logical sector address  
+- Convert the LBA logical sector address to CHS hard ware based address  
+- Load kernel into memory  
 
-FAT table:
-The start of the FAT12 bootloader needs to contain what I call the FAT table.
-This contains all the variables needed to do with the filesystem and is used by the file system
-code. This is best done in the format:
-"abc BYTE 0	; Comment"
-Though it can be done like:
-"BYTE 0"
-But as you will discover you will almost certainly need to refer to those values within the code
-implementing the filesystem. The reason that the variable names are not needed is due to the
-position of the values being the important issue not the names identified with them.
-This table is used to get details about the drive and things like the drive name/ID filesystem
-etc. So to get details on any FAT disk you just read the first section of the disk and parse as
-needed.
-One major advantage of adding this table is that even if you only add this and nothing else you
-will be able to read and write to the floppy disk as a normal FAT12 floppy.
-Everything after this will be for actually using the FAT12 system within your bootloader.
 
-Root directory calculations:
+## Disk preparation  
+You should start with either a blank floppy disk, or a disk which contains no important information, as any data on the disk is likely to be corrupted by the following procedures. It is common to first format the floppy drive or image ('format a:' in DOS), to ensure the disk contains no data in the space used by the FAT tables. Formatting the disk is not required when working with newly created disk images and not strictly required in all situations when working with physical disks.  
+
+## Making your drive FAT12 compatible  
+Your floppy disk, or disk image, requires only a list of variables placed at the very start of the first sector of the drive to become FAT12 compatible. This list contains all the information needed for interacting with the filesystem and is used by both your code and other Operating Systems to access the contents of the disk. Because of the fixed position this information could be written as just "BYTE 0" however it is highly recommend you define the variables with names and comments to allow you to easily refer back to these values and identify their purpose. Including just this information is sufficient to allow the disk to be used by other Operating Systems for saving or reading files.  
+
+jmp EndFATInfo  
+ OEM_ID                  db      "MYOS    "      ; 8 char ID of FAT software (I.E. MSDOS)  
+ BytesPerSector          dw      512             ; Sector size in bytes  
+ SectorsPerCluster       db      1               ; Sectors per cluster  
+ ReservedSectors         dw      4               ; Reserved sectors (Sectors used by the bootloader)  
+ TotalFATs               db      2               ; Number of FATs (two for redundancy)  
+ MaxRootEntries          dw      224             ; Root directory entries  
+ TotalSectors            dw      2880            ; Total Sectors  
+ MediaDescriptor         db      0F0h            ; Format ID (0F0h = Removable FAT12)  
+ SectorsPerFAT           dw      9               ; Sectors per File Allocation Table (FAT)   
+ SectorsPerTrack         dw      18              ; Sectors per track  
+ NumHeads                dw      2               ; Number of heads  
+ HiddenSectors           dd      0               ; Hidden sectors (applicable for partitioned drives)  
+ TotalSectorsLarge       dd      0               ; More sectors  
+ DriveNumber             db      0               ; Drive Number (Primary Floppy is usually 0)  
+ Flags                   db      0               ; Reserved  
+ Signature               db      41              ; Boot signature  
+ VolumeID                dd      435101793       ; Volume serial number (date+time)  
+ VolumeLabel             db      "NO NAME    "   ; Volume label (11 bytes)  
+ SystemID                db      "FAT12   "      ; File system (8 bytes)  
+EndFATInfo:  
+
+The inline comments in this example explain most of the fields. They can loosely be categorised into fields which describe the physical drive (BytesPerSector; TotalSectors; SectorsPerTrack; NumberOfHeads; DriveNumber) values with describe the file system (SectorsPerCluster; TotalFATs; MaxRootEntries; SectorsPerFAT) values for indicating reserved space (ReservedSectors; HiddenSectors) and a number of values which are either purely informational (eg. VolumeID) or defined to fixed values based on the FAT specification. The values which describe the physical disk generally take values which are consistant with those required by interrupt 0x13.  
+
+The field you need to pay attention to is Reserved Sectors. The minimum value for this field is 1, but if your bootloader spans multiple sectors ensure you update this value to reflect the number of sectors reserved for your bootloader. This can easily be figured out by taking your second stage binary and dividing by 512 and rounding up.  
+
+*NOTE: The text fields MUST be a set length. If you change the contents ensure you add or remove space characters to maintain the fields original length*  
+
+
+## Root directory calculations  
 These calculations are quite important in loading and using the FAT table and will certainly
 be needed if you plan to implement a FAT file system. I personally put the results of the
 3 formulas into there own variables for refering to them: DataStart, RootStart and RootSize
@@ -53,23 +65,23 @@ Though some people may prefer to play around with the stack and/or registers rat
 the values in variables. Variables make it easier to read and understand and allows changes to
 be made easier. Hence the reasons I recommend using them regularly. But it does use up disk
 space!
-* The root directory size can be calculated by values within the FAT table, the values used for
+- The root directory size can be calculated by values within the FAT table, the values used for
 this calculation would be: Number of Root Entries, Bytes per entry and Bytes per sector.
 The formula is: (NumOfRootEntries * BytesPerEntry) / BytesPerSector
 In words: Times Number of root enters by the bytes per entry, then divide that value by bytes
 per sector. (Ignore any remainder, that is used later)
-* The root directory start location is calculated using values within the FAT table also, the
+- The root directory start location is calculated using values within the FAT table also, the
 values used are: Number of reserved sectors, Total FATs and Sectors per FAT.
 The formula is simply: NumReservedSectors + (TotalFATs * SectorsPerFAT)
 (TotalFATs * SectorsPerFAT) equals the total number of FAT sectors.
-* The data start location can be (yet again) calculated by values within the FAT table (by now
+- The data start location can be (yet again) calculated by values within the FAT table (by now
 you should be relising how much easier it is to refer to the values by name than position).
 The values used are: Reserved sectors, Total FATs, Sectors per FAT
 Also the value of Root size aquired from an earlier calculation is needed.
 The formula is: Reserved sectors + (Total FATs * Sectors per FAT) + Root size
 (Total FATs * Sectors per FAT) is equal to The total number of FAT sectors.
 
-Loading the root directory:
+## Loading the root directory  
 The next stage is to load the root directory into memory. I assume that you know about loading
 sectors and LBA to CHS addressing from earlier documents I've written so I'll skip the details.
 The values to input are simply to start loading from "RootStart" calculated in the earlier step
@@ -79,7 +91,7 @@ The location to load the root directory into though can be of your own choosing 
 As long as it doesn't disrupt the running of the boot loader or any important data previously
 written to memory by your boot loader.
 
-Browse the root directory:
+## Browse the root directory  
 In this stage, which is quite a bit harder you have to browse/search/scan (or what ever you want
 to call it) the root directory for the entry corresponding to the kernel file name you have will
 defined. It searchs by file name, an 11 digit name. Unlike DOS it is not a nice "kern.com"
@@ -95,26 +107,26 @@ What is normally done is:
 Once the search has ended save/store the offset of how far into the root directory the file entry
 was found for future reference/use.
 
-FAT calculations:
+## FAT calculations  
 These claculations are needed in order to load the FAT and load anything from the FAT file
 system, if you per chance just wanted to get a list of files or search for a file but nothing
 more you can get away with out implementing this section or anything more.
 I recommend that you store these values into variables if you have the space, if not make sure
 not to accidently delete them! (I use FATsize and FATstart in this document and my code)
-* The FAT size is equal to (as I have mentioned before in a couple of places) the number of FATs
+- The FAT size is equal to (as I have mentioned before in a couple of places) the number of FATs
   (Yes there can be more than 1, but we won't be dealing with anything complicated) times by the
   number of sectors per FAT.
   So NumFATs * SectorsPerFAT equals Total number of FAT sectors aka FAT size.
   The values NumFATs and SectorsPerFAT you define in the FAT table at the start of the boot
   sector normally.
-* The FAT start location is also very simple. It starts after any reserved sectors. Number of
+- The FAT start location is also very simple. It starts after any reserved sectors. Number of
   reserved sectors is defined in the FAT table at the start of the boot loader also.
   So formula wise: FATstart = NumReservedSectors
   (Yes that easy) Why the reserved sectors? Well some boot loaders may load up multiple stages
   so using more than the normal 1 sector of disk. There may be other things that could reserve
   sectors at the start but mostly it will be by elaborate boot loaders.
 
-Loading the FAT:
+## Loading the FAT  
 Now we need to load the FAT into memory so we can look up the address of the entry in the root
 directory. This is a very simple overlay style lookup (for lack of a better term). The offset
 in the root directory when applied to the FAT will give the address of the root entry in FAT
@@ -130,7 +142,7 @@ root directory location. As we no longer will be needing the root directory in t
 If we did it would only take a second to reload it. This way though you save a lot of hassle with
 trying to make pointers point to the right places.
 
-Looking up the FAT cluster:
+## Looking up the FAT cluster  
 By following the previous stages correctly this stage is not really even needed! You don't have
 to look up the cluster till the actual loading of the kernel. The offset into the root directory
 is the first cluster! This makes things far easier, as there is no calculations needed here,
@@ -138,7 +150,7 @@ you just need to understand how important the offset into the root directory rea
 The root directory entry location offset is equal to the offset needed for the FAT address and
 details.
 
-Converting a FAT cluster to a LBA logical sector address:
+## Converting a FAT cluster to a LBA logical sector address  
 This converts the FAT cluster based addressing into LBA based addressing. The difference is that
 clusters can be of different sizes on different FAT based implementations where as LBA
 addressing deals only with sectors, and CHS addressing deals with sectors, heads and tracks.
@@ -146,7 +158,7 @@ Formula to get the data location offset: LBA = (Cluster - 2) * sectors per clust
 Then also you have to add to this the datastart location to get the actual file data/content
 address. This is done in an earlier stage in a calculation, DataStart.
 
-Converting LBA addressing to CHS addressing:
+## Converting LBA addressing to CHS addressing  
 This I have convered in an earlier document/tutorial. I recommend starting off by refering to
 things by CHS addressing (Approx 18sectors per track normally), then LBA addressing then moving
 onto filesystems. At least until you get the hang of how it all works and fits together. Also in
@@ -154,7 +166,7 @@ my opinion FAT12 is the easiest file system to start with (other than a custom m
 also has among the largest amount of support. So with the end product you will be able to read
 and write to the disk like you would any other using a FAT12 driver. (Standard in microsoft OS's)
 
-Loading the kernel:
+## Loading the kernel  
 This is by far among the harder sections, and not as easy as reading the FAT or root directory.
 There are no calculations working out the size of the kernel. The start of the kernel though
 has just been calculated by the earlier set of formulas.
@@ -165,10 +177,10 @@ The basic steps are:
 - Move to the next cluster (Harder than it sounds, formula is: (Current*1.5) read FAT table,
   if odd shift right 4 bits, if even mask out top 4 bits)
 - Check FAT cluster details: (The data just read from the FAT)
--- If Empty code and display a corrupted/incomplete file message (Code num: 0000h)
--- If Bad cluster code display an error message (Code num: 0ff7h)
--- If End of chain/file code display a complete/loaded file message (Code num: 0fffh)
--- If Data code move onto the next cluster (Code num: Address to next cluster)
+- - If Empty code and display a corrupted/incomplete file message (Code num: 0000h)
+- - If Bad cluster code display an error message (Code num: 0ff7h)
+- - If End of chain/file code display a complete/loaded file message (Code num: 0fffh)
+- - If Data code move onto the next cluster (Code num: Address to next cluster)
 - Convert FAT to LBA addressing
 - Load the number of bytes per cluster (BytesPerCluster defined in the FAT table)
 - Jump round to the start
@@ -184,8 +196,8 @@ a working implementation.
 I don't intend you to learn purely from here but to use this as a guide line to know what is
 needed to implement a FAT12 system.
 
-Examples:
----------
+## Examples  
+
 All the examples are simple cut's and pastes from my own boot loaders. The source of my
 boot loaders contain extra comments with the input and output of each procedure/section.
 The source to look at is: Bootloader Ver 0.5
@@ -193,7 +205,7 @@ This code may be dependant upon earlier code or values stored else where in my b
 The general idea is not to cut and paste my code unless you understand what it does properly.
 And remember I prefer it if you don't steal my code without notifying me.
 
-* FAT12 table:
+- FAT12 table:
 
         OEM_ID                  db      "DFOS    "      ; 8 char sys ID
         BytesPerSector          dw      512             ; Sector size in bytes
@@ -215,8 +227,8 @@ And remember I prefer it if you don't steal my code without notifying me.
         VolumeLabel             db      "NO NAME    "   ; Volume label (11 bytes)
         SystemID                db      "FAT12   "      ; File system (8 bytes)
 
-* Calculate some important FAT values:
-- Root Directory Size - (Number of Root Entries * Bytes per entry) / Bytes per sector
+- Calculate some important FAT values:
+- - Root Directory Size - (Number of Root Entries * Bytes per entry) / Bytes per sector
 
 	xor ax, ax			; Zero registers
 	xor cx, cx
@@ -226,7 +238,7 @@ And remember I prefer it if you don't steal my code without notifying me.
         div WORD [BytesPerSector]    	; Divide
         mov [RootSize], ax      	; Put the value into a nice storage area for a bit
 
-- Root Directory Start Location - Reserved sectors + Fat sectors
+- - Root Directory Start Location - Reserved sectors + Fat sectors
 
 	xor ax,ax			; Zero AX for next calculation
         mov al, BYTE [TotalFATs]        ; Load up number of FAT tables (/info) into AL
@@ -234,20 +246,20 @@ And remember I prefer it if you don't steal my code without notifying me.
         add ax, WORD [ReservedSectors]  ; Add to the FAT total (AX) the number of reserved sectors
         mov [RootStart], ax             ; Put the start of the root address into RootStart variable
 
-- Data start location - Reserved sectors + FAT sectors + Root size
+- - Data start location - Reserved sectors + FAT sectors + Root size
 
         mov cx,[RootSize]               ; Mov the root size into CX
         add ax, cx			; Add ax (RootStart) to cx (RootSize)
 	mov [DataStart], ax             ; Move the answer into DataStart
 
-* Load the root directory into memory
+- Load the root directory into memory
 
 	mov ax,[RootStart]		; Start location of the root directory
 	mov cx,[RootSize]		; Number of sectors to load
 	mov bx,0x1000			; Offset of location to write to (es:bx)
 	call ReadSectors		; <- Read root directory sectors
 
-* Scan through the root directory until the image is found (by 11 digit name)
+- Scan through the root directory until the image is found (by 11 digit name)
 
 	mov cx, WORD [MaxRootEntries]	; Load the loop counter
 	mov di, 0x1000			; First root entry (Offset)
@@ -268,26 +280,26 @@ And remember I prefer it if you don't steal my code without notifying me.
         mov     dx, WORD [di + 0x001A]
         mov     WORD [KernelAddress], dx                  ; file�s first cluster
 
-* FAT calculations
-- Work out FAT size - Total FATs * Sectors per FAT
+- FAT calculations
+- - Work out FAT size - Total FATs * Sectors per FAT
 
 	xor ax,ax		; Zero AX
 	mov al, BYTE [TotalFATs]; Move TotalFAT's into position
 	mul WORD [SectorsPerFAT]; Multiply by SectorsPerFAT
 	mov WORD [FATsize], ax	; Move into memory variable
 
-- Work out FAT start location - Number of reserved Sectors
+- - Work out FAT start location - Number of reserved Sectors
 
 	xor ax,ax			; Zero AX
 	mov ax, WORD [ReservedSectors]	; Move ReservedSectors into ax (This is the FATstart location)
 
-* Load FAT into memory
+- Load FAT into memory
 
 	mov cx, WORD [FATsize]	; FAT table size
 	mov bx,0x1000		; Offset of memory location to load to
 	call ReadSectors	; Read sectors procedure
 
-* Calculate the next cluster and get the cluster details from the FAT (This is a procedure used
+- Calculate the next cluster and get the cluster details from the FAT (This is a procedure used
   else where)
 
 NextCluster:
@@ -311,7 +323,7 @@ NextCluster:
 		ret			; Return
 
 
-* Calculate the LBA address from the FAT address (Procedure)
+- Calculate the LBA address from the FAT address (Procedure)
 
 FATtoLBA:
 	sub ax, 0x0002				; Subtract 2 from ax (Not sure why yet)
@@ -321,10 +333,10 @@ FATtoLBA:
 	add ax, WORD [DataStart]		; Base data sector
 	ret					; Return
 
-* Convert the LBA logical sector address to CHS hard ware based address
+- Convert the LBA logical sector address to CHS hard ware based address
 Please look at one of my earlier documents on this.
 
-* Load kernel into memory (Combines all this)
+- Load kernel into memory (Combines all this)
 	push es		; Save es
 	mov bx, 0x3000	; Destination location
 	mov es, bx	; Segment

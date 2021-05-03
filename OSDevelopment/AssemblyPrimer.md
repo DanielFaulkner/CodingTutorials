@@ -1,3 +1,5 @@
+# REWRITE AND CONVERSION TO MARKDOWN SYNTAX IN PROGRESS  
+
 ## Assembly Language introduction
 
 A place holder for a short (NASM) assembly primer for readers who are not able to purchase a book on Assembly, or are not intending to use the assembly for the majority of their hobby operating system development.  
