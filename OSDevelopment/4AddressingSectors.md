@@ -9,6 +9,8 @@ Equations
 LBA to CHS Assembly Example  
 Introduction  Stacking - Creating a place to store values temporarily  
 Complete bootloader example  
+Error checking  
+Loading multiple sectors  
 
 ## Introduction  
 A (mechanical) physical drive is made up of a magnetic platter (or disk) which stores the information and heads to read the information from the disk. To access data from the drive the BIOS needs to be informed where to position the head, and which head to use. This is the basis of the CHS address system.  
@@ -20,7 +22,7 @@ A (mechanical) physical drive is made up of a magnetic platter (or disk) which s
 
 When reading/writing to a disk by a physical, CHS, address the sector number is incremented until the end of the track is reached. At the end of the track the head is incremented to read/write to the track on the bottom of the floppy disk. The sector number is reset and increments until the end of the track is reached, at this point the cylinder number is incremented moving the head and the process starts again. I.E. (0,0,1)...(0,0,18),(0,1,0)...(0,1,18),(1,0,0)...  
 
-When reading/writing to a disk by a logical, LBA, address only the sector number is used and goes from 1 up to the end of the disk. I.E. 1,2,3,4,5.....  
+When reading/writing to a disk by a logical, LBA, address only the sector number is used and goes from 0 up to the end of the disk. I.E. 0,1,2,3,4,5.....  
 
 *Note when using a hard drive there maybe multiple platters and therefore multiple heads per cylinder.*  
 
@@ -210,7 +212,7 @@ JMP 0x2000:0x0000  ; CS becomes 0x2000 and IP becomes 0x0000.
 ;	        dh - Head  
 ;	        ch - Cylinder  
 
-LBACHS:  
+LBAtoCHS:  
  PUSH bx                  ; Copy the contents of bx to the stack to preserve the register state  
  MOV dx,bx                ; Store the LBA number in bx while using ax for a multiplication  
  ; Calculate the cylinder  
@@ -286,6 +288,8 @@ readerror:       ; Handle read errors
 ```
 
 This extended error checking example will try 5 times to run INT 0x13 before giving up.  
+
+## Loading multiple sectors
 
 These examples are all based around loading a single sector. If you are loading multiple sectors and want to apply this read error handling to each sector you could combine all of the above examples, into a loop incrementing the LBA address by one, the memory destination by 512 and decreasing the remaining sectors to load by one on each iteration of the loop.  
 

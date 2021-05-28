@@ -6,7 +6,7 @@ The BIOS contains an interrupt which can be called to perform the task of loadin
 
 ## Disk addressing systems
 **LBA:**  
-Logical Block Addressing. This addressing system numbers each sector from 1 onwards, until the end of the disk. LBA addresses are commonly used because they don't require any knowledge of the physical disk layout and for their simplicity, with only one number to increment.  
+Logical Block Addressing. This addressing system numbers each sector from 0 onwards, until the end of the disk. LBA addresses are commonly used because they don't require any knowledge of the physical disk layout and for their simplicity, with only one number to increment.  
 
 **CHS:**  
 Cylinder, Head and Sector addressing. This is a form of physically addressing the disk and is how the BIOS function interacts with the disk drive. However this requires an understanding of how the disk is constructed. How many sectors to a cylinder and how many heads etc.  
