@@ -1,3 +1,3 @@
 # Hobby Operating System tutorial examples  
 
-This folder will eventually contain the relevant examples from the tutorial series.  
+This folder contains example code from the OS development guides. These examples may not have been tested and could fail to compile or execute. All code is run at the users own risk.

@@ -208,7 +208,7 @@ rep cmpsb                       ; Repeat internally the compare string block ins
 pop di                          ; Restore DI  
 je FoundFile                    ; If equal the file has been found, jump to FoundFile label.  
 pop cx                          ; Restore the counter value  
-add di, 0x0020                  ; Add 32 to the value in DI (Next FAT block start)  
+add di, 0x0020                  ; Add 32 to the value in DI (Start of next entry)  
 loop SearchLoop                 ; Loop decreases cx by one and jmps, unless cx == 0 then it stops looping.  
 ; File has not been found, you may want to display an error message  
 jmp End                         ; Ignore the code to run on success  
