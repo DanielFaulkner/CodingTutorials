@@ -1,0 +1,253 @@
+This document is to demonstrate how to turn on the A20 line and it's uses.
+
+Contents:
+
+* A20 - What is it and why do I need to know about it
+* The basic theory
+  - Port interaction
+  - Keyboard controller
+* Short explaination of the code
+* Walkthough
+
+What is it?
+
+The A20 (or "A20 line" as it is sometimes known) is used to unlock extra memory. This
+ is not the easiest of things partly because of the evolution of the x86 PC. So the
+original designs didn't take into account as much as they should of the amount of
+memory available and needed by modern day computers. In order to have backwards
+compatibility IBM decided that the extra memory available only to certain computers
+should be setup so that it can be disabled for backwards compatibilty. As such now as
+default the extra memory can't be accessed without enabling the memory. So as a
+Operating System Developer one of the first things to do when moving beyond real mode
+is to enable this extra memory. If you plan only to work with real mode then this
+doesn't apply but for unreal or protected mode this is the first step.
+So enabling the A20 line means I can access all this extra memory? Wrong. It enables
+it but before you can access that memory you must setup the segments so that they can
+address this extra space but thats something I won't be covering here. (Maybe a later
+tutorial)
+
+Basic theory:
+
+The method used to enable the memory is not as easy as calling an interrupt but
+requires interaction with hardware at the port level (sending specific codes along
+the memory buses etc) so I'm going to cover some of the basic's on this quickly.
+
+Port interaction -
+This is done mainly using 2 assembly commands. 'IN' and 'OUT' I would think of this
+as getting data from a bus 'IN' to a register and sending data 'OUT' on the bus.
+in <register to store data recieved>, <port/location to get data from>
+eg: in al, 64h
+out <port/location to send to>, <data to send>
+eg: out 64h, al
+
+This does mean however that for each bit of hardware you want to communicate with on
+this level there is a lot of numbers you need to research. What the port numbers are,
+and what each bit on the port does which then has to be translated by you or looked
+up as to what the hexadecimal code is (though you could probably write it as binary
+and let the compiler do the rest as long as you tell the assembler you are using
+binary by putting a 'b' after the binary number).
+
+Keyboard controller -
+The guys at IBM when trying to decide on a place to put this switch to toggle the
+extra memory decided to put it into the keyboard controller. So in order to set the
+A20 line you will have to interact with this hence the need for the basic port
+instructions. The specifics of the controller for this function are:
+Port number 64h will allways contain the status of the controller, which we will use
+to check when the controller is ready to recieve the next bit of data we have for it.
+Port number 64h also allows for us to send some commands to it.
+Port numner 60h is the data port for the controller (we will disable the interrupts
+so only our program should be using this so we can use it to send data setting the
+A20)
+
+There are documents out there that explain the keyboard controller in full but I'll
+just mention the stuff we need for the A20 line.
+The ports are as follows -
+Status port (64h) when read will give you:
+<stuff not relevant here>,<Input buffer full bit>,<Output buffer full bit>
+We will need this to know when to send data.
+If we send a command (mentioned further down) to the controller asking to send us the
+current controller settings we will recieve from port 60h would be in the form of:
+<Unrelated bits>,<A20 bit 1=Enabled>,<Another bit we won't use>.
+We will send data to the same port to modify those settings which will be in the same
+order.
+
+Commands the controller accepts: (Send on port 64h)
+D0 - View current settings using port 60h
+D1 - Send/change settings using port 60h
+DF - Command to enable the A20 line (not universal so not going to just use this)
+
+Short explaination of code:
+
+The code for the A20 line in thoery is quite easy. However it looks large mainly
+because of the constant need to check the status of the keyboard controller. Because
+the controller is seperate of the processor and we aren't using an interrupt we have
+to tell the processor to stop and wait for the data to be made available or processed
+by the keyboard controller before continuing. There are 2 main methods for setting
+the A20 line the manual method (most supported) and the more automatic version (less
+universal support but the number of computers that can't do this are probably fairly
+small).
+
+Easy method (non manual):
+- Pause and check controller state by reading 64h until it says the input buffer is empty
+- Send the command DFh to port 64h
+
+Harder more compatible manual method:
+- Pause and check controller state by reading 64h until it says the input buffer is empty
+- Send the command D0h to port 64h (Send us the settings on port 60h)
+- Pause and check controller state by reading 64h until it says the output buffer is full
+- Get and save to stack the current settings on port 60h
+- Pause and check controller state by reading 64h until it says the input buffer is empty
+- Send the command D1h to port 64h (Setup port 60h so we can send updated settings
+- Pause and check controller state by reading 64h until it says the input buffer is empty
+- Load and update the current settings to include the A20 bit.
+- Send the updated settings using port 60h
+
+Testing that they worked:
+- Pause and check controller state by reading 64h until it says the input buffer is empty
+- Send the command D0h to port 64h (Send us the settings on port 60h)
+- Pause and check controller state by reading 64h until it says the output buffer is full
+- Recieve the current settings on port 60h
+- Check the A20 bit (2nd bit from the right referenced as '1') if set to '1' success
+
+As you can see this checking the status between each communication with the
+controller is what is adding the majority of the code.
+
+Walk though:
+I'll use the above mentioned 'sections and elaborate them into proper assembly rather
+than making a complete procedure I'll leave you to add the finer points and order the
+code in a way you like as you may decide to go for the easier if less compatible
+approch knowing that most people have modern computers or you may decide to use the
+more compatible method or both in case one way doesn't work. After each attempt to
+set the A20 line though test the settings to see if it was a success or not before
+continuing.
+
+Easy method:
+
+	; Wait for controllers input buffer to become empty
+	.ControllerWait:	; Loop label
+	xor ax,ax		; Zero ax to ensure nothing is currently in it
+	in al, 0x64		; Get port status and put into AL
+	bt ax, 1		; Check that the input buffer is empty
+				; (could use test instruction)
+	jc .ControllerWait	; bt will put the bit into the carry flag. (1=full)
+				; If the bit was a 1 loop until status changes
+
+	; Send the command to enable A20 line and hence the extra memory
+	mov al, 0xDF		; Send a command direct to controller setting A20 bit
+	out 0x64, al		; Send using port 64h
+
+Thats it done for the easy method. (Not all that bad) The next method isn't as easy however.
+
+Manual method:
+
+	; Check that the keyboard controller is ready to recieve instructions.
+	.ControllerWait:	; Loop label
+	xor ax,ax		; Zero ax
+	in al, 0x64		; Get port status and put into AL
+	bt ax, 1		; Check that the input buffer is empty
+	jc .ControllerWait	; bt will put bit into carry flag. (1=full)
+
+	; Send command asking to recieve on port 60h the controllers settings
+	mov al, 0xD0		; Read the kbd controller settings command
+	out 0x64, al		; Tell the controller we want to recieve its settings
+
+	; Check to see when the controller has put it's settings onto port 60h
+	.DataWait:		; Loop label
+	xor ax,ax		; Zero ax
+	in al, 0x64		; Get the status data from port 64h
+	bt ax, 0		; Check the output status bit
+	jnc .DataWait		; If 0 (empty) loop round and try again
+
+
+	; Get and save current settings to modify and rewrite
+	xor ax,ax		; Zero ax
+	in al, 0x60		; Putting the result into al (port 60h=dataout)
+	push ax			; Save onto the stack
+
+
+	; Wait for the controller to be ready to accept another command
+	.ControllerWait2:	; Another status check to wait for when the controller is ready
+	xor ax,ax
+	in al, 0x64		; Get port status and put into AL
+	bt ax, 1		; Check that the input buffer is empty
+	jc .ControllerWait2	; bt will put last bit into carry flag.
+
+	; Update and reload the controller code
+	mov al, 0xD1		; Command to controller to setup port 60h to recieve new settings
+	out 0x64, AL		; Send to controller
+
+	; Wait for the controller to be ready to accept another command
+	.ControllerWait3:	; Yet another status check to wait for the controller
+	xor ax,ax
+	in al, 0x64		; Get port status and put into AL
+	bt ax, 1		; Check that the input buffer is empty
+	jc .ControllerWait3	; bt will put last bit into carry flag.
+
+	; Load the settings and update
+	xor ax,ax		; Zero ax
+	pop ax			; Load the current settings from the stack
+	or al, 00000010b	; Modify settings, turning on the A20 bit
+	out 60h, al		; Send updated settings to the controller using port 60h
+
+That was harder but to test the A20 line is basicly the same in reverse.
+
+	; Check that the keyboard controller is ready to recieve instructions.
+	.ControllerWait:	; Loop label
+	xor ax,ax		; Zero ax
+	in al, 0x64		; Get port status and put into AL
+	bt ax, 1		; Check that the input buffer is empty
+	jc .ControllerWait	; bt will put bit into carry flag. (1=full)
+
+	mov al, 0xD0		; Send controller settings command
+	out 0x64, al		; Tell controller we want to read the settings on port 60h
+
+	; Check to see when the controller has put it's settings onto port 60h
+	.DataWait:		; Loop label
+	xor ax,ax		; Zero ax
+	in al, 0x64		; Get the status data from port 64h
+	bt ax, 0		; Check the output status bit
+	jnc .DataWait		; If 0 (empty) loop round and try again
+
+	; Get and check the settings
+	xor ax,ax		; Zero ax
+	in al, 0x60		; Put the current settings into al (from port 60h=dataout)
+	bt ax, 1		; Check the A20 bit (1 if on, this will load it to carry flag)
+	jc .end			; If set we can goto the success label
+
+	; Add any error message or handling code here
+	...
+	.end:
+
+Stuff to remember to do yourself to finish this off:
+Turn off the interrupts at the start of this code and turn them back on at the
+end. (cli to turn them off and sti to turn them back on)
+Add a loop so it tries to set the A20 line more than once might be advised
+Rename some of the labels so they are unique.
+Add some error handling and/or messages.
+Maybe make into a procedure.
+
+I hope this helps.
+
+End matter:
+
+All examples are created by myself with the aid of various documents, if you need
+further guides or examples please check the internet or get in touch, you may use and
+modify this code as you like (but I'm not liable for any problems caused by using
+it). I apologise if this looks like any particular existing example but there is only
+so much variation possible where this is concerned. Feel free to mention on your own
+site or in the source or by e-mail if you found this tutorial helpful in your own
+projects.
+
+If you translate or change the tutorial please get in contact with the modified
+version so that I can mention it or update my version, if you feel there is something
+I should mention or change please again get in contact. (If any changes are submitted
+I will do my best to give credit where it is due if I use the submission in an
+updated tutorial)
+If you copy this tutorial and add it to a website please include this message and a
+link to my website.
+
+Daniel Rowell Faulkner
+
+E-mail: daniel.faulkner@cwcom.net
+URL: http://www.dftech.cwc.net
+IRC: irc.debian.org #osdev and #OSDevelopment (nick DRF)

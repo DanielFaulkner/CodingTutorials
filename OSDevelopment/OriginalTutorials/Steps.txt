@@ -1,0 +1,51 @@
+Boot loader steps:
+
+The steps that a boot loader should carry out:
+
+Essential points:
+Set up the segment registers
+Set up the stack
+Print Message procedure
+
+Almost essential:
+Load sectors from a disk/secondary storage device.
+	- CHS (Essential)
+	- LBA (Important if you plan to load more than a few sectors)
+(Setup the segment registers to the loaded loction recommended)
+Transfer control to the kernel/loaded sectors.
+
+Common things:
+Protected Mode
+File System
+	- FAT12 is commonly used on floppy drives
+	- FAT16 is commonly used on small hard drives
+	- FAT32 is commonly used on larger hard drives
+	- Ext2 is commonly used all so.
+	- Or you can make your own or use a less common file system.
+
+I'm sorry about the brief nature of this file and the lack of
+helpfull information.
+However I hope to re-write this with more content at a later time,
+currently I am using this more like a place holder.
+
+*----------------------------------------------------------------*
+
+If this has helpped you please send me an e-mail saying so. 
+(I like compliments)
+
+If you want to see new things in here please say, if you want to 
+translate this into an other language please send me the new version 
+so I can host that as an alternative. (I can translate copy's of this
+if requested but the altavista translater isn't quite perfected for 
+large documents like this, and I would rather spend my time working 
+on something else)
+
+If you change this or make a copy on your website could you please 
+keep my details with the file and could you please mention it to me 
+some how.
+
+Daniel Rowell Faulkner
+
+E-mail: daniel.faulkner@cwcom.net
+URL: http://www.dftech.cwc.net
+IRC: You will find me at: irc.debian.org #osdev and #OSDevelopment (Nick: DRF)

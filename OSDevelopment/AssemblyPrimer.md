@@ -24,7 +24,10 @@ The RET command is used to return to the main program.
 RET			; Returns to the main program
 PUSH <reg>		; Puts the register's value onto the stack
 POP <reg>		; Restores a registers value using the value on the stack
-MUL <reg>      ; Multiples AX by the register (or memory location) specified
+MUL <reg>      ; Multiples AX by the register (or memory location) specified  
+TEST  
+SHR  
+AND  
 
 []'s means load thes value at memory location LBAvalue. Without the brackets the memory location is loaded. When loading values the datatypes should equal the register type. So a word 'dw' can be loaded into a ax,bx,cx,dx register. While a byte 'db' needs to be loaded into a smaller register space using ah,al,bh,bl and so on. These can also be used for storing value as variables.  
 
