@@ -1,4 +1,4 @@
-; Relevant guide: 6FilesystemsFAT12.md
+; Relevant guide: 5FilesystemsFAT12.md
 ; Description: The hello world bootloader but with the parameters at the start to make it FAT12 compatible
 ;
 ; All code run at the users own risk

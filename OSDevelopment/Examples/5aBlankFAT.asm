@@ -1,4 +1,4 @@
-; Relevant guide: 6FilesystemsFAT12.md
+; Relevant guide: 5FilesystemsFAT12.md
 ; Description: An empty FAT table, with reserved values correctly set.
 ;
 ; All code run at the users own risk

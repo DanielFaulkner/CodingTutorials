@@ -11,7 +11,7 @@ Some of the tutorials have been prefixed with a number to indicate the suggested
 Currently I am in the process of editing these to correct errors, convert to markdown format and improve the grammar and code explainations.
 
 Current status:
-- 5Userinput.md is a placeholder and has not been written.
+- Userinput.md is a placeholder and has not been written.
 - Debugging.md is a placeholder and has not been written.
 - RealModeMemory.md is a placeholder and has not been written.
 - IntTut.txt has not yet been updated.

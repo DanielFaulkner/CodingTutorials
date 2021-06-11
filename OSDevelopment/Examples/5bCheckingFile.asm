@@ -1,4 +1,4 @@
-; Relevant guide: 6FilesystemsFAT12.md
+; Relevant guide: 5FilesystemsFAT12.md
 ; Description: A bootloader which checks for the presence of a FAT12 file
 ;
 ; All code run at the users own risk
