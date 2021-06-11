@@ -34,6 +34,7 @@ You should start with either a blank floppy disk, or a disk which contains no im
 ### Boot sector parameters  
 Your floppy disk, or disk image, requires a list of variables placed at the very start of the first sector of the drive to become FAT12 compatible. This list contains all the information needed for interacting with the filesystem and is used by both your code and other Operating Systems to access the contents of the disk. Because of the fixed position this information could be written as just "BYTE 0" however it is highly recommend you define the variables with names and comments to allow you to easily refer back to these values and identify their purpose. Including just this information is maybe sufficient to allow the disk to be used by other Operating Systems for saving or reading files.  
 
+```assembly
 jmp EndFATInfo  
  OEM_ID                  db      "MYOS    "      ; 8 char ID of FAT software (I.E. MSDOS)  
  BytesPerSector          dw      512             ; Sector size in bytes  
@@ -55,6 +56,7 @@ jmp EndFATInfo
  VolumeLabel             db      "NO NAME    "   ; Volume label (11 bytes)  
  SystemID                db      "FAT12   "      ; File system (8 bytes)  
 EndFATInfo:  
+```
 
 The inline comments in this example explain most of the fields. They can loosely be categorised into fields which describe the physical drive (BytesPerSector; TotalSectors; SectorsPerTrack; NumberOfHeads; DriveNumber) values with describe the file system (SectorsPerCluster; TotalFATs; MaxRootEntries; SectorsPerFAT) values for indicating reserved space (ReservedSectors; HiddenSectors) and a number of values which are either purely informational (eg. VolumeID) or defined to fixed values based on the FAT specification. The values which describe the physical disk generally take values which are consistant with those required by interrupt 0x13.  
 
@@ -78,6 +80,7 @@ Entry 2: Contains information on the filesystem condition
 
 These values can be easily added to an assembly file and compiled to create an empty FAT table ready for writing to a disk if you find it is required, or if you want to ensure you are adhering to the FAT standard. However, as their isn't a 12bit data type for FAT12 you will probably need to write the values using 3 8bit bytes.
 
+```assembly
 [BITS 16]       ; Informs the compiler that 16bit machine code is required.  
 [ORG 0x0000]    ; Origin, informs the compiler where the code is going to be loaded in memory.  
 
@@ -86,6 +89,7 @@ FilesystenFlags  db  0xFF  ; FF for clean. F7 for not correctly mounted etc.
 Filler           db  0xFF  ; Always FF to set remaining bits in the second FAT entry to 1.  
 
 times 512-($-$$) db 0 ; Fills the rest of the sector with zeros.  
+```
 
 *Note: This creates a single sector, the FAT table is likely larger than 1 sector. If you want to explicity zero out the rest of the FAT table space multiply the FAT size in sectors by the sector size (512) and use this value instead.*  
 
@@ -143,6 +147,7 @@ RootSize = (224 * 32) / 512 = 14
 
 In assembly theses calculations become:
 
+```assembly
 RootStart dw 0                  ; Optionally create some variables to store the results  
 RootSize  dw 0  
 
@@ -169,15 +174,18 @@ inc ax                          ; Add one to AX to round up
 rootsizeend                     ; Label to jump to if there was no remainder  
 mov [RootSize], ax              ; Store the root table position in a variable  
                                 ; Or alternatively store to the stack or unused register  
+```
 
 This is a comprehensive example storing the results into memory variables. If you are creating a minimalistic driver and don't anticipate the values in the boot sector parameter table to change you could calculate the values and write them into the code directly or perform the above calculation but exclude the lines which round up the sector number after the division.  
 
 Finally the root table can be loaded into a free space in memory. The instructions for performing this is covered in the previous addressing sectors and loading sectors tutorials and won't be covered here. Because the code execution isn't moving to this memory location it's important to ensure you choose a memory offset that doesn't overlap with your executing code. To simplify the process I recommend keeping the segment registers the same where possible.  
 
+```assembly
 mov ax, [RootStart]            ; Move the LBA address to ax  
 mov cx, [RootSize]             ; Move the table size into cx  
 mov bx, 0x1000                 ; Memory offset to load sectors into  
 call readsectors               ; Procedure to load the sectors into memory  
+```
 
 This example code doesn't perform any error checking but should demonstrate the procedures required to load multiple sectors into memory, utilising the functions decribed in the previous addressing sectors tutorial.  
 
@@ -186,6 +194,7 @@ With the root directory table loaded into memory it is now ready to be searched 
 
 An example of this is:  
 
+```assembly
 KernelName db "KERNEL  COM"     ; File name to search for  
 
 mov cx, WORD [MaxRootEntries]   ; Number of entries to check  
@@ -206,6 +215,7 @@ jmp End                         ; Ignore the code to run on success
 FoundFile                       ; File has been found  
 ; Add code to display a message or load the file etc.  
 End  
+```
 
 *Note: replace the offset of the first entry to reflect the offset you have loaded the root directory table into.*
 
@@ -265,6 +275,7 @@ FATSize = 2 * 9 = 18
 
 The FAT position doesn't need calculation, but below is an example of how to calculate the FAT table size, utilising the boot sector parameters.
 
+```assembly
 FATSize dw 0             ; Variable to store the FAT size  
 
 ; Calculate the size of the FAT tables  
@@ -281,6 +292,7 @@ mov ax, [ReservedSectors]      ; Move the LBA address to ax
 mov cx, [FATSize]              ; Move the table size into cx  
 mov bx, 0x1000                 ; Memory offset to load sectors into  
 call readsectors               ; Procedure to load the sectors into memory  
+```
 
 The memory location used can be the same as the root directory table, when writing code for the bootloader, provided the number of the first cluster of the file has been already looked up and stored.
 
@@ -293,6 +305,7 @@ With the FAT table loaded into memory it can be accessed to identify the next cl
 
 The first cluster number has been provided by the root directory table, the first step is to load the contents of the associated FAT entry and check if the cluster is a bad sector. Depending on how your driver is configured you may want to either halt the loading of the file if a bad sector is indicated or displaying a warning before attempting to load the sector.
 
+```assembly
 ; Load the contents of a FAT entry  
 FATmemorylocation dw 0x1000   ; Change to reflect where the FAT is loaded in memory  
 FileFirstCluster  dw 0        ; Memory variable storing the file's first cluster number  
@@ -353,6 +366,7 @@ EmptyError                  ; Error handling
 ...  
 BadClusterError  
 ...  
+```
 
 *Note: The number of the first file cluster doesn't need to be stored in a memory variable, it could be loaded into a register or retrieved from the stack. As before the choice of registers, except when AX is used for arithmatic instructions, is arbitary. Due to the redundant tables, if present, any invalid FAT table entries, or even valid entries, could be compared with the redundant table to identify or resolve irregularities. However this topic is not covered as part of this guide.*
 
@@ -379,15 +393,18 @@ With the correct bytes loaded into a register and processed the values can be ch
 
 Loading the cluster is relatively easy but does require calculating the start position of the FAT filesystem data region, which comes immediately after the Root Directory table. The data region of the filesystem can be calculated by adding together the number of reserved sectors, the number of sectors used for the File Allocation Table and the number of sectors used for the Root directory table, all values calculated previously in this guide. Alternatively as we have already calculated the start position of the Root directory table and we know the data region starts after this table we can simply add the Root directory table size to it's start position.  
 
+```assembly
 ; Calculate FAT data region  
 DataStart dw 0                  ; Memory variable to store the start of the FAT data region  
 mov ax,[RootStart]              ; Move into ax the start position  of the Root directory table  
 mov cx,[RootSize]               ; Move into cx the root directory size  
 add ax, cx                      ; Add ax (RootStart) to cx (RootSize)  
 mov [DataStart], ax             ; Move the answer into the DataStart memory location  
+```
 
 With the start of the data region calculated the cluster numbers can be converted to sector addresses and loaded using the code described in previous guides on loading sectors using logical, LBA, addresses. The physical address for each cluster is easily calculated as they are simply addressed in order within the data region of the filesystem. However, it is important to remember the first 2 FAT entries are reserved and don't relate to physical clusters.
 
+```assembly
 ; Load current cluster (provided in ax below)  
 LoadLocation dw 0x1000              ; Set this variable to the desired memory location  
 mov bx, [LoadLocation]              ; Memory location to load the file into  
@@ -400,6 +417,7 @@ mul cx                              ; Multiply AX by CX (ClusterNumber * Sectors
 add ax, WORD [DataStart]            ; Add the offset for the start of the data region  
 ...                                 ; Previously discussed code to load logical, LBA, sectors  
 ret                                 ; Return to FAT entry loading loop  
+```
 
 This final small snippet of code converts the FAT cluster number into the logical, LBA, sector to load with the number of sectors to load present in cx or the memory variable SectorsPerCluster. Usually for FAT12 filesystems there is only 1 sector to load, but ideally the code should accomodate larger values. The memory location to load to would also need to be provided and incremented with each loaded sector, as discussed in the previous guides on loading sectors.  
 
