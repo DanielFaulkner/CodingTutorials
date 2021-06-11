@@ -8,7 +8,7 @@ These majority of these guides were first written around the year 2000. The code
 
 Some of the tutorials have been prefixed with a number to indicate the suggested reading order. If you were to follow each tutorial you should have a reasonable understanding of how to create a simple real mode bootloader which can display messages to the monitor and load a file from a FAT filesystem.  
 
-Currently I am in the process of editing these to correct errors, convert to markdown format and improve the grammar and code explainations.
+Currently I am in the process of editing these to correct errors, convert to markdown format and improve the grammar and code explanations.
 
 Current status:
 - Userinput.md is a placeholder and has not been written.

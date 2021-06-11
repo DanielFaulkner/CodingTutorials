@@ -5,7 +5,7 @@ A guide to writing a minimalistic FAT12 driver for the purpose of loading and ex
 
 This tutorial will cover the information in the order that you need to access the tables. This allows you to create functional code to test each stage before moving onto the next section.  
 - Introduction
-- **Creating a FAT12 compatible disk:** Howto ensure the disk is recognised as a FAT12 disk, allowing files to be loaded onto the disk by other operating systems. Describes the boot sector parameters table.  
+- **Creating a FAT12 compatible disk:** How to ensure the disk is recognised as a FAT12 disk, allowing files to be loaded onto the disk by other operating systems. Describes the boot sector parameters table.  
 - **Looking up a filename:** Querying the root directory table to get information on file.  
 - **Loading a file:** Using the File Allocation Table to lookup each successive cluster to load.  
 - Conclusion
@@ -58,17 +58,17 @@ jmp EndFATInfo
 EndFATInfo:  
 ```
 
-The inline comments in this example explain most of the fields. They can loosely be categorised into fields which describe the physical drive (BytesPerSector; TotalSectors; SectorsPerTrack; NumberOfHeads; DriveNumber) values with describe the file system (SectorsPerCluster; TotalFATs; MaxRootEntries; SectorsPerFAT) values for indicating reserved space (ReservedSectors; HiddenSectors) and a number of values which are either purely informational (eg. VolumeID) or defined to fixed values based on the FAT specification. The values which describe the physical disk generally take values which are consistant with those required by interrupt 0x13.  
+The inline comments in this example explain most of the fields. They can loosely be categorised into fields which describe the physical drive (BytesPerSector; TotalSectors; SectorsPerTrack; NumberOfHeads; DriveNumber) values with describe the file system (SectorsPerCluster; TotalFATs; MaxRootEntries; SectorsPerFAT) values for indicating reserved space (ReservedSectors; HiddenSectors) and a number of values which are either purely informational (eg. VolumeID) or defined to fixed values based on the FAT specification. The values which describe the physical disk generally take values which are consistent with those required by interrupt 0x13.  
 
 The field you need to pay attention to is Reserved Sectors. The minimum value for this field is 1, but if your bootloader spans multiple sectors ensure you update this value to reflect the number of sectors reserved for your bootloader. This can easily be figured out by taking the size of your second stage binary in bytes, dividing by 512 and rounding up.  
 
 *NOTE: The text fields are a fixed length. If you change the contents ensure you add or remove space characters to maintain the fields original length*  
 
 ### Initialising the FAT table  
-Often just adding the boot sector parameters is enough to make the disk recognised. Especially if your bootloader is entirely contained within the first sector and you have preformatted the drive. Even when that is not the case I have usually found the disk to work without further steps provided the drive has been zeroed. However, offically the first two entries of the FAT table are used to store additional information by the filesystem. The start of the first entry describes the drive type, while the start of the second entry is used to indicate the filesystems status.  
+Often just adding the boot sector parameters is enough to make the disk recognised. Especially if your bootloader is entirely contained within the first sector and you have pre-formatted the drive. Even when that is not the case I have usually found the disk to work without further steps provided the drive has been zeroed. However, officially the first two entries of the FAT table are used to store additional information by the filesystem. The start of the first entry describes the drive type, while the start of the second entry is used to indicate the filesystems status.  
 
 Entry 1: Contains the media descriptor (as used in the boot sector parameter table)  
-- Format: Media descriptor code, with all preceeding bits set to 1 (F in hexadecimal).  
+- Format: Media descriptor code, with all preceding bits set to 1 (F in hexadecimal).  
 - *FAT16:* FFF0h or in binary 1111111111110000b  which is stored as 0000111111111111  
 - *FAT12:* FF0h or in binary 111111110000b which is stored as 000011111111  
 This inversion of the bit order is due to x86 computers being little endian. If you are not confident how this works I recommended pausing and looking up endianess. *NOTE: For FAT16 it is more likely the media descriptor F8 would be used, indicating a fixed, non removable, disk.*  
@@ -99,7 +99,7 @@ First write your bootloader to the disk:
 - Compile and write to disk the bootloader file(s).  
 - *If required* write the FAT table to the disk.  
 
-Remount the disk, or disk image and try writing a file to the disk. In linux with a disk image this can be done using:  
+Remount the disk, or disk image and try writing a file to the disk. In Linux with a disk image this can be done using:  
 mkdir Temp  
 sudo mount -o loop floppy.img Temp  
 sudo cp filename.txt Temp  
@@ -128,7 +128,7 @@ This table is located immediately after the File Allocation Tables and contains 
 The optional fields should be set to zero if unused. The field reserved for FAT32 stores part of the more significant part of the cluster number in FAT32 filesystems as the FAT12/16 field isn't large enough alone.  *Note: The root directory table also contains entries for directories. But this guide assumes the file is located in the root directory.*
 
 ### Loading the root directory table  
-The first step in loading the root directory table is to first calculate it's position and size. This could be done once and hard coded, however it is relatively easy to calculate. Additionally by calculating this and similar values required later it will be easier to adapt the code to accomodate any changes later.  
+The first step in loading the root directory table is to first calculate it's position and size. This could be done once and hard coded, however it is relatively easy to calculate. Additionally by calculating this and similar values required later it will be easier to adapt the code to accommodate any changes later.  
 
 Using the values from the boot sector parameter table described earlier the root table starting position and size in logical sectors can be calculated as:  
 
@@ -162,8 +162,8 @@ mov [RootStart], ax             ; Store the root table position in a variable
 ; Calculate root directory size  
 xor ax, ax                      ; Zero registers  
 xor cx, cx                      ; Alternative to CX could be used here  
-mov ax,[MaxRootEntries]         ; Move the first value to the arithmatic register (AX)  
-mov cx, 32                      ; Move the multiplcation factor (bytes per entry) into a register  
+mov ax,[MaxRootEntries]         ; Move the first value to the arithmetic register (AX)  
+mov cx, 32                      ; Move the multiplication factor (bytes per entry) into a register  
 mul cx                          ; Multiply the number of root entries by the entry size  
 xor dx, dx                      ; Zero DX incase a remainder is generated by the division  
 div WORD [BytesPerSector]       ; Divide by the bytes per sector to get the size in sectors  
@@ -187,7 +187,7 @@ mov bx, 0x1000                 ; Memory offset to load sectors into
 call readsectors               ; Procedure to load the sectors into memory  
 ```
 
-This example code doesn't perform any error checking but should demonstrate the procedures required to load multiple sectors into memory, utilising the functions decribed in the previous addressing sectors tutorial.  
+This example code doesn't perform any error checking but should demonstrate the procedures required to load multiple sectors into memory, utilising the functions described in the previous addressing sectors tutorial.  
 
 ### Looking up a filename in the root directory table  
 With the root directory table loaded into memory it is now ready to be searched to find an entry that matches the filename of the kernel, or another file you want the details of. Each entry is 32 bytes with the filename taking up the first 11 of those bytes. *The period in the filenames is not stored and is only used to separate the filename from the extension. I.E. "FILE.TXT -> "FILE    TXT".* Which means a search can be done by comparing 11 bytes, moving along to the start of the next entry then comparing again until all entries have been checked.
@@ -219,7 +219,7 @@ End:
 
 *Note: replace the offset of the first entry to reflect the offset you have loaded the root directory table into.*
 
-This example introduces a couple of new instructions like rep cmpsb and loop, with there use described in the comments. Otherwise the code is fairly self explainatory. This code snippet doesn't perform any action when a file is found, or not found. It is recommended that you take this code and experiment with adding success and failure messages. However take care to preserve the value in DI, as this contains the offset in memory for the matching root table entry and is needed to lookup additional details on the file.  
+This example introduces a couple of new instructions like rep cmpsb and loop, with there use described in the comments. Otherwise the code is fairly self explanatory. This code snippet doesn't perform any action when a file is found, or not found. It is recommended that you take this code and experiment with adding success and failure messages. However take care to preserve the value in DI, as this contains the offset in memory for the matching root table entry and is needed to lookup additional details on the file.  
 
 ## Loading a file
 Each root directory table entry has a field for the first FAT filesystem cluster to load. Looking up this cluster in the File Allocation Table will identify if this is the last cluster, or provide the address of the next cluster to load.
@@ -280,9 +280,9 @@ FATSize dw 0             ; Variable to store the FAT size
 
 ; Calculate the size of the FAT tables  
 xor ax,ax                ; Zero AX to remove any values currently present    
-mov al, BYTE [TotalFATs] ; Move the number of FAT tables into the arithmatic register (AL)  
+mov al, BYTE [TotalFATs] ; Move the number of FAT tables into the arithmetic register (AL)  
 mul WORD [SectorsPerFAT] ; Multiply the number of FAT tables by their size in sectors    
-mov WORD [FATsize], ax	 ; Store the result in a memory variable  
+mov WORD [FATSize], ax	 ; Store the result in a memory variable  
 ```
 
 In the example above the size of the FAT table region is stored in a variable, but it could be stored to the stack or in an unused register.
@@ -300,7 +300,7 @@ The memory location used can be the same as the root directory table, when writi
 
 *The error handling of the readsectors code (from a previous guide) could be modified to take advantage of the redundant FAT table, if present, ensuring at least one FAT table is loaded if possible. However this is not covered as part of this guide.*
 
-An alternative to loading the entire FAT region into memory is to only load up the sector containing the FAT entry needed. However this method of FAT loading requires additional calculations to determine which sector to load and the memory location of the FAT entry, additionally for larger files this may also require multiple disk reads to load different part of the FAT table. To keep this guide simple this approach isn't covered in this guide, prefering to instead load the entire table.
+An alternative to loading the entire FAT region into memory is to only load up the sector containing the FAT entry needed. However this method of FAT loading requires additional calculations to determine which sector to load and the memory location of the FAT entry, additionally for larger files this may also require multiple disk reads to load different part of the FAT table. To keep this guide simple this approach isn't covered in this guide, preferring to instead load the entire table.
 
 ### Loading a file using the File Allocation Table
 With the FAT table loaded into memory it can be accessed to identify the next cluster to load, or if the loading of the file should halt due to reaching the end of the file or encountering a bad sector. While the principles are the same for FAT12 and FAT16 filesystems the differences in entry size makes accessing the FAT table slightly different. Particularly for FAT12 filesystems, as there there isn't a 12bit data structure.  
@@ -313,51 +313,57 @@ FATmemorylocation dw 0x1000   ; Change to reflect where the FAT is loaded in mem
 FileFirstCluster  dw 0        ; Memory variable storing the file's first cluster number  
 
 ...   ; Load the FAT table into memory (see previous section)  
-...   ; Look up the FileFirstCluster value using the root directory table (covered previously)  
+...   ; Look up the Root Directory Entry value using the root directory table (covered previously)  
+; The first cluster number is 2bytes (a word) stored 26 bytes into the entry (or 0x1A)  
+mov ax, WORD [di + 0x001A]
+mov [FileFirstCluster], ax
 
 ; Lookup the contents of the FAT entry  
 
-mov ax, [FileFirstCluster]  ; Load into the arithmatic register the first cluster number  
+mov ax, [FileFirstCluster]  ; Load into the arithmetic register the first cluster number  
 LoadFATEntry:               ; Start of FAT entry checking loop  
 
 ; -- FAT16 --  
+push ax                     ; Preserve the current cluster number  
 mov cx, 2                   ; Bytes per cluster entry (2)  
 mul cx                      ; Multiply the cluster by the bytes per cluster to calculate the offset  
 mov bx, [FATmemorylocation] ; Load the memory location of the FAT into a register  
 add ax, bx                  ; Add the offset to the FAT table start location in memory  
                             ; Alternative would be add ax, WORD [FATmemorylocation]  
 mov dx, WORD [ax]           ; Read the contents of the FAT entry into a register  
+pop ax                      ; Restore the current cluster number  
 
 ; -- FAT12 --  
+push ax                     ; Preserve the current cluster number  
 mov cx, ax                  ; Bytes per cluster entry (1.5), so  
 shr cx, 0x0001              ; divide cx by 2 (could use div instruction instead of shirt right)  
-add ax, cx                  ; Add the halved value of FileFIrstCluster to ax to get 1.5 multiplcation  
+add ax, cx                  ; Add the halved value of FileFirstCluster to ax to get 1.5 multiplcation  
 mov bx, [FATmemorylocation] ; Load the memory location of the FAT into a register  
 add ax, bx                  ; Add the offset to the FAT table start location in memory  
                             ; Alternative would be add ax, WORD [FATmemorylocation]  
-mov dx, WORD [ax]           ; Read the contents of the FAT entry into a register  
+mov dx, ax                  ; Read the contents of the FAT entry into a register  
                             ; Important: Check which bits contain the FAT content  
-mov ax, [FileFirstCluster]  ; Move the starting cluster value into ax  
 test ax, 0x0001             ; Test to see if the FAT entry was odd or even  
 jnz .OddCluster             ; If odd jump to the OddCluster label  
 .EvenCluster:               ; Even entries: FAT entry in bottom 12bits  
   and dx, 0x0fff            ; Mask out the top 4 bits (0000111111111111b)  
-  jmp Done                  ; Finished  
+  jmp .Done                  ; Finished  
 .OddCluster:                ; Odd entries: FAT entry in top 12bits  
   shr dx, 0x0004            ; Shift contents right by 4 bits. (1111111111110000b -> 0000111111111111b)  
-Done   
+.Done:   
+pop ax                      ; Restore the current cluster number  
 
 ; -- FAT (both, with modifications to error codes) --  
 
 ; Check for invalid options or errors  
 cmp dx,0000h                ; Check for free cluster (Empty)  
 je EmptyError               ; Error message  
-cmp dx,0ff7h                ; Check for bad cluster (change to ffffh for FAT16)  
+cmp dx,0ff7h                ; Check for bad cluster (change to fff7h for FAT16)  
 je BadClusterError          ; Error message  
 ; Load the current cluster into memory  
 ...                         ; Call to a function to load the sector (covered later)  
 ; Check if the end of the file has been reached  
-cmp ax,0x0fff               ; Check for end of chain (change to 0xffff for FAT16)  
+cmp dx,0x0fff               ; Check for end of chain (change to 0xffff for FAT16)  
 je FinishedLoad             ; End FAT chain lookup  
 ; Reset and loop back round for the next cluster  
 mov ax, dx                  ; Move the next cluster number into ax to reset for the next FAT entry  
@@ -370,7 +376,7 @@ BadClusterError:
 ...  
 ```
 
-*Note: The number of the first file cluster doesn't need to be stored in a memory variable, it could be loaded into a register or retrieved from the stack. As before the choice of registers, except when AX is used for arithmatic instructions, is arbitary. Due to the redundant tables, if present, any invalid FAT table entries, or even valid entries, could be compared with the redundant table to identify or resolve irregularities. However this topic is not covered as part of this guide.*
+*Note: The number of the first file cluster doesn't need to be stored in a memory variable, it could be loaded into a register or retrieved from the stack. As before the choice of registers, except when AX is used for arithmetic instructions, is arbitrary. Due to the redundant tables, if present, any invalid FAT table entries, or even valid entries, could be compared with the redundant table to identify or resolve irregularities. However this topic is not covered as part of this guide.*
 
 This code snippet shows the process of loading and checking File Allocation Table entries for both FAT12 and FAT16 filesystems. While the principles are the same the 12bit FAT entries require additional code to ensure the correct two bytes are loaded into a register and that only the 12bits relating to the FAT entry are examined. Loading the correct bytes requires multiplying the cluster number by the number of bytes per cluster:  
 FAT12: |byte |byte |byte |byte |byte |byte |  
@@ -390,7 +396,7 @@ FAT12 Words  | 0000 0000  0000 0000 |
 
 Each even numbered cluster (FAT12 entry) is present in the first 12bits of the 2 bytes loaded into the 16bit register, while each odd cluster is loaded into the last 12bits of the 2 bytes loaded into the register. Therefore for even entries the bits need to be shifted to the right 4 places using the 'shr' instruction and odd entries need to have the first 4 bits set to zero using the 'and' instruction.
 
-With the correct bytes loaded into a register and processed the values can be checked using the 'cmp' instruction, the example here only checks for empty or bad sectors instead of all invalid options but the principle is the same. If no errors are found and the end of the file hasn't been reached then the nuxt cluster value is loaded into a register and the process loops back to the start.  
+With the correct bytes loaded into a register and processed the values can be checked using the 'cmp' instruction, the example here only checks for empty or bad sectors instead of all invalid options but the principle is the same. If no errors are found and the end of the file hasn't been reached then the next cluster value is loaded into a register and the process loops back to the start.  
 
 
 Loading the cluster is relatively easy but does require calculating the start position of the FAT filesystem data region, which comes immediately after the Root Directory table. The data region of the filesystem can be calculated by adding together the number of reserved sectors, the number of sectors used for the File Allocation Table and the number of sectors used for the Root directory table, all values calculated previously in this guide. Alternatively as we have already calculated the start position of the Root directory table and we know the data region starts after this table we can simply add the Root directory table size to it's start position.  
@@ -421,7 +427,7 @@ add ax, WORD [DataStart]            ; Add the offset for the start of the data r
 ret                                 ; Return to FAT entry loading loop  
 ```
 
-This final small snippet of code converts the FAT cluster number into the logical, LBA, sector to load with the number of sectors to load present in cx or the memory variable SectorsPerCluster. Usually for FAT12 filesystems there is only 1 sector to load, but ideally the code should accomodate larger values. The memory location to load to would also need to be provided and incremented with each loaded sector, as discussed in the previous guides on loading sectors.  
+This final small snippet of code converts the FAT cluster number into the logical, LBA, sector to load with the number of sectors to load present in cx or the memory variable SectorsPerCluster. Usually for FAT12 filesystems there is only 1 sector to load, but ideally the code should accommodate larger values. The memory location to load to would also need to be provided and incremented with each loaded sector, as discussed in the previous guides on loading sectors.  
 
 This covers all the individual steps required to load a file from a FAT filesystem. Putting these code examples together with some of the previously covered guides should allow you to write a basic FAT driver to read files from the root directory of a FAT12 or FAT16 filesystem. A potential project to test this works would be to write a bootloader with a welcome message stored in a file and have this file opened, loaded into memory and the message displayed to the screen. However, you may need to take care to ensure your message uses characters compatible with the print function you are using to display the message.  
 
