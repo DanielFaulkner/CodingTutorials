@@ -46,29 +46,29 @@ JMP 0x2000:0x0000  ; CS becomes 0x2000 and IP becomes 0x0000.
 ;	        ch - Cylinder
 
 LBAtoCHS:
- PUSH bx                  ; Copy the contents of bx to the stack to preserve the register state
- MOV dx,bx                ; Store the LBA number in bx while using ax for a multiplication
+ PUSH bx                    ; Copy the contents of bx to the stack to preserve the register state
+ MOV dx,bx                  ; Store the LBA number in bx while using ax for a multiplication
  ; Calculate the cylinder
- MOV ax, [NumberOfHeads]  ; Calculate the sectors per cylinder
- MUL [SectorsPerTrack]    ;  Multiples the provided value by the value in ax, storing the result in ax
- DIV bx                   ; Divide LBA by the sectors per cylinder to calculate the cylinder value
-                          ;  DIV stores the quotient in ax - Which is our cylinder number
- MOV ch, al               ; Store the lower byte, containing the cylinder number in ch
+ MOV ax, [NumberOfHeads]    ; Calculate the sectors per cylinder
+ MUL WORD [SectorsPerTrack] ;  Multiples the provided value by the value in ax, storing the result in ax
+ DIV bx                     ; Divide LBA by the sectors per cylinder to calculate the cylinder value
+                            ;  DIV stores the quotient in ax - Which is our cylinder number
+ MOV ch, al                 ; Store the lower byte, containing the cylinder number in ch
 
  ; Calculate the head and sector (which start with the same division)
- MOV ax, bx               ; Move the LBA value into the arithmetic register, ax
- DIV [SectorsPerTrack]    ; LBA/SectorsPerTrack = Track number (ax) and Sector number (dx)
+ MOV ax, bx                 ; Move the LBA value into the arithmetic register, ax
+ DIV WORD [SectorsPerTrack] ; LBA/SectorsPerTrack = Track number (ax) and Sector number (dx)
 
  ; Sector
- INC dx                   ; Add 1 to the remainder of the division, stored in dx
- MOV cl, dl               ; Store the value into the cl register
+ INC dx                     ; Add 1 to the remainder of the division, stored in dx
+ MOV cl, dl                 ; Store the value into the cl register
 
  ; Head
- DIV [NumberOfHeads]      ; ax still contains the track number (quotient) from the previous division
- MOV dh, dl               ; Move the remainder value into the register dl
+ DIV WORD [NumberOfHeads]   ; ax still contains the track number (quotient) from the previous division
+ MOV dh, dl                 ; Move the remainder value into the register dl
 
- POP bx                   ; Restore the value in bx
- RET                      ; Return to the main program
+ POP bx                     ; Restore the value in bx
+ RET                        ; Return to the main program
 
 ; Data
 

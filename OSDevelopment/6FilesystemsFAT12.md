@@ -212,9 +212,9 @@ add di, 0x0020                  ; Add 32 to the value in DI (Start of next entry
 loop SearchLoop                 ; Loop decreases cx by one and jmps, unless cx == 0 then it stops looping.  
 ; File has not been found, you may want to display an error message  
 jmp End                         ; Ignore the code to run on success  
-FoundFile                       ; File has been found  
+FoundFile:                      ; File has been found  
 ; Add code to display a message or load the file etc.  
-End  
+End:  
 ```
 
 *Note: replace the offset of the first entry to reflect the offset you have loaded the root directory table into.*
@@ -318,7 +318,7 @@ FileFirstCluster  dw 0        ; Memory variable storing the file's first cluster
 ; Lookup the contents of the FAT entry  
 
 mov ax, [FileFirstCluster]  ; Load into the arithmatic register the first cluster number  
-LoadFATEntry                ; Start of FAT entry checking loop  
+LoadFATEntry:               ; Start of FAT entry checking loop  
 
 ; -- FAT16 --  
 mov cx, 2                   ; Bytes per cluster entry (2)  
@@ -339,11 +339,11 @@ mov dx, WORD [ax]           ; Read the contents of the FAT entry into a register
                             ; Important: Check which bits contain the FAT content  
 mov ax, [FileFirstCluster]  ; Move the starting cluster value into ax  
 test ax, 0x0001             ; Test to see if the FAT entry was odd or even  
-jnz OddCluster              ; If odd jump to the OddCluster label  
-EvenCluster                 ; Even entries: FAT entry in bottom 12bits  
+jnz .OddCluster             ; If odd jump to the OddCluster label  
+.EvenCluster:               ; Even entries: FAT entry in bottom 12bits  
   and dx, 0x0fff            ; Mask out the top 4 bits (0000111111111111b)  
   jmp Done                  ; Finished  
-OddCluster                  ; Odd entries: FAT entry in top 12bits  
+.OddCluster:                ; Odd entries: FAT entry in top 12bits  
   shr dx, 0x0004            ; Shift contents right by 4 bits. (1111111111110000b -> 0000111111111111b)  
 Done   
 
@@ -362,11 +362,11 @@ je FinishedLoad             ; End FAT chain lookup
 ; Reset and loop back round for the next cluster  
 mov ax, dx                  ; Move the next cluster number into ax to reset for the next FAT entry  
 jmp LoadFATEntry            ; Loop back to start  
-FinishedLoad                ; End of loop  
+FinishedLoad:               ; End of loop  
 ...  
-EmptyError                  ; Error handling  
+EmptyError:                 ; Error handling  
 ...  
-BadClusterError  
+BadClusterError:  
 ...  
 ```
 

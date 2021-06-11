@@ -71,23 +71,23 @@ Sector           dw  0
 
 LBACHS:  
 ; Calculate the cylinder  
-MOV ax, [NumberOfHeads]  ; Calculate the sectors per cylinder  
-MUL [SectorsPerTrack]    ;  Multiples the provided value by the value in ax, storing the result in ax  
-DIV [LBA]                ; Divide LBA by the sectors per cylinder to calculate the cylinder value  
-                         ;  DIV stores the quotient in ax - Which is our cylinder number  
-MOV [Cylinder], ax       ;  Store this value in the Cylinder variable   
+MOV ax, [NumberOfHeads]    ; Calculate the sectors per cylinder  
+MUL WORD [SectorsPerTrack] ;  Multiples the provided value by the value in ax, storing the result in ax  
+DIV [LBA]                  ; Divide LBA by the sectors per cylinder to calculate the cylinder value  
+                           ;  DIV stores the quotient in ax - Which is our cylinder number  
+MOV [Cylinder], ax         ;  Store this value in the Cylinder variable   
 
 ; Calculate the head and sector (which start with the same division)  
-MOV ax, [LBA]            ; Move the LBA value into the arithmetic register, ax  
-DIV [SectorsPerTrack]    ; LBA/SectorsPerTrack = Track number (ax) and Sector number (dx)  
+MOV ax, [LBA]              ; Move the LBA value into the arithmetic register, ax  
+DIV WORD [SectorsPerTrack] ; LBA/SectorsPerTrack = Track number (ax) and Sector number (dx)  
 
 ; Sector  
-INC dx                   ; Add 1 to the remainder of the division, stored in dx  
-MOV [Sector], dx         ; Store the value into the Sector variable  
+INC dx                     ; Add 1 to the remainder of the division, stored in dx  
+MOV [Sector], dx           ; Store the value into the Sector variable  
 
 ; Head  
-DIV [NumberOfHeads]      ; ax still contains the track number (quotient) from the previous division  
-MOV [Head], dx           ; Move the remainder value into the Head variable  
+DIV WORD [NumberOfHeads]   ; ax still contains the track number (quotient) from the previous division  
+MOV [Head], dx             ; Move the remainder value into the Head variable  
 ```
 
 This example makes use of the mathematical operators MUL and DIV to perform multiplications and division. These instructions act on the value in the register ax (arithmetic register), using the register or value provided. The result of the multiplication, and the  quotient of the division are stored back into ax. With the remainder of the division stored in dx. If you need to perform multiple calculations on the same input ensure you copy the result from ax and reset ax to the starting value for each maths instruction.  
@@ -213,29 +213,29 @@ JMP 0x2000:0x0000  ; CS becomes 0x2000 and IP becomes 0x0000.
 ;	        ch - Cylinder  
 
 LBAtoCHS:  
- PUSH bx                  ; Copy the contents of bx to the stack to preserve the register state  
- MOV dx,bx                ; Store the LBA number in bx while using ax for a multiplication  
+ PUSH bx                    ; Copy the contents of bx to the stack to preserve the register state  
+ MOV dx,bx                  ; Store the LBA number in bx while using ax for a multiplication  
  ; Calculate the cylinder  
- MOV ax, [NumberOfHeads]  ; Calculate the sectors per cylinder  
- MUL [SectorsPerTrack]    ;  Multiples the provided value by the value in ax, storing the result in ax  
- DIV bx                   ; Divide LBA by the sectors per cylinder to calculate the cylinder value  
-                          ;  DIV stores the quotient in ax - Which is our cylinder number  
- MOV ch, al               ; Store the lower byte, containing the cylinder number in ch  
+ MOV ax, [NumberOfHeads]    ; Calculate the sectors per cylinder  
+ MUL WORD [SectorsPerTrack] ;  Multiples the provided value by the value in ax, storing the result in ax  
+ DIV bx                     ; Divide LBA by the sectors per cylinder to calculate the cylinder value  
+                            ;  DIV stores the quotient in ax - Which is our cylinder number  
+ MOV ch, al                 ; Store the lower byte, containing the cylinder number in ch  
 
  ; Calculate the head and sector (which start with the same division)  
- MOV ax, bx               ; Move the LBA value into the arithmetic register, ax  
- DIV [SectorsPerTrack]    ; LBA/SectorsPerTrack = Track number (ax) and Sector number (dx)  
+ MOV ax, bx                 ; Move the LBA value into the arithmetic register, ax  
+ DIV WORD [SectorsPerTrack] ; LBA/SectorsPerTrack = Track number (ax) and Sector number (dx)  
 
  ; Sector  
- INC dx                   ; Add 1 to the remainder of the division, stored in dx  
- MOV cl, dl               ; Store the value into the cl register  
+ INC dx                     ; Add 1 to the remainder of the division, stored in dx  
+ MOV cl, dl                 ; Store the value into the cl register  
 
  ; Head  
- DIV [NumberOfHeads]      ; ax still contains the track number (quotient) from the previous division  
- MOV dh, dl               ; Move the remainder value into the register dl  
+ DIV WORD [NumberOfHeads]   ; ax still contains the track number (quotient) from the previous division  
+ MOV dh, dl                 ; Move the remainder value into the register dl  
 
- POP bx                   ; Restore the value in bx  
- RET                      ; Return to the main program  
+ POP bx                     ; Restore the value in bx  
+ RET                        ; Return to the main program  
 
 ; Data  
 
@@ -274,15 +274,15 @@ JC readerror     ; If the carry flag has been set by INT 0x13 retry
 readerror:       ; Handle read errors  
  PUSH di         ; Using the DI register as unused by INT 0x13, but preserving any values within  
  MOV di, 5       ; Number of attempts to try
- .readloop       
+ .readloop:       
   INT 0x13       ; Try to read the sector again  
   JNC .success   ; If there is a success go to the end of the function  
   DEC di         ; Else decrease the counter in di  
   JZ .fail       ; If the counter reaches zero and the Zero flag is set go to the failure code  
   JMP .readloop  ; Return to the start of the read loop  
- .fail
+ .fail:
   ; Add any error handling or error message processing here
- .success
+ .success:
   POP di         ; Restore the di register  
   RET            ; Return to the main program  
 ```
@@ -302,7 +302,7 @@ MOV cx, 5                      ; Number of sectors to load can instead be stored
 CALL readsectors               ; Replace the call to INT 0x13 with a function call  
 ...
 readsectors:                   ; Function to handle reads from multiple sectors  
- .start
+ .start:
   PUSH cx                       ; Keep a record of the number of sectors to load
   PUSH ax                       ; Keep a record of the starting logical address  
   CALL LBAtoCHS                 ; Convert from logical to CHS addressing  
@@ -317,7 +317,7 @@ readsectors:                   ; Function to handle reads from multiple sectors
   INC ax                        ; Else: Increment the logical address  
   ADD bx,[BytesPerSector]       ; Increase the memory address for the next sector  
   JMP .start
- .end
+ .end:
   RET                          ; Return to the main program  
 
 BytesPerSector dw 512          ; Sector size in bytes

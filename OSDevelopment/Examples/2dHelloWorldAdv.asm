@@ -34,7 +34,7 @@ PutStr:        ; Procedure label/start
  mov ah,0x0E   ; The function to display a character (teletype)
  mov bh,0x00   ; Page number
 
-.nextchar      ; Internal label (needed to loop around for the next character)
+.nextchar:     ; Internal label (needed to loop around for the next character)
  lodsb         ; I think of this as LOaD String Byte (may not be the official meaning)
                ; Loads DS:SI into AL and increases SI by one
  ; Check for end of string '0'
@@ -42,7 +42,7 @@ PutStr:        ; Procedure label/start
  jz .return    ; If the zero flag has been set go to the end of the procedure.
  int 0x10      ; Run the BIOS video interrupt
  jmp .nextchar ; Loop back around
-.return        ; Label at the end to jump to when the loop is complete
+.return:       ; Label at the end to jump to when the loop is complete
  ret           ; Return to main program
 
 ; Data
