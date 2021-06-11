@@ -68,13 +68,13 @@ The field you need to pay attention to is Reserved Sectors. The minimum value fo
 Often just adding the boot sector parameters is enough to make the disk recognised. Especially if your bootloader is entirely contained within the first sector and you have preformatted the drive. Even when that is not the case I have usually found the disk to work without further steps provided the drive has been zeroed. However, offically the first two entries of the FAT table are used to store additional information by the filesystem. The start of the first entry describes the drive type, while the start of the second entry is used to indicate the filesystems status.  
 
 Entry 1: Contains the media descriptor (as used in the boot sector parameter table)  
-- Format = Media descriptor code, with all preceeding bits set to 1 (F in hexadecimal).  
+- Format: Media descriptor code, with all preceeding bits set to 1 (F in hexadecimal).  
 - *FAT16:* FFF0h or in binary 1111111111110000b  which is stored as 0000111111111111  
 - *FAT12:* FF0h or in binary 111111110000b which is stored as 000011111111  
 This inversion of the bit order is due to x86 computers being little endian. If you are not confident how this works I recommended pausing and looking up endianess. *NOTE: For FAT16 it is more likely the media descriptor F8 would be used, indicating a fixed, non removable, disk.*  
 
 Entry 2: Contains information on the filesystem condition  
-- Format = <0=Dirty, did not unmount cleanly>,<0=Errors found when last mounting disk>,<All other bits = 1>
+- Format: <0=Dirty, did not unmount cleanly>,<0=Errors found when last mounting disk>,<All other bits = 1>  
 - *FAT16:* FFFFh if clean; FF7Fh if not unmounted correctly; FFBFh if the filesystem has errors; FF3Fh if both.
 - *FAT12:* FFFh (Note the filesystem condition flags aren't usually used for FAT12 filesystems)
 
@@ -283,11 +283,13 @@ xor ax,ax                ; Zero AX to remove any values currently present
 mov al, BYTE [TotalFATs] ; Move the number of FAT tables into the arithmatic register (AL)  
 mul WORD [SectorsPerFAT] ; Multiply the number of FAT tables by their size in sectors    
 mov WORD [FATsize], ax	 ; Store the result in a memory variable  
+```
 
 In the example above the size of the FAT table region is stored in a variable, but it could be stored to the stack or in an unused register.
 
 The FAT tables can then be loaded into memory in the same way as the root directory table.
 
+```assembly
 mov ax, [ReservedSectors]      ; Move the LBA address to ax  
 mov cx, [FATSize]              ; Move the table size into cx  
 mov bx, 0x1000                 ; Memory offset to load sectors into  
