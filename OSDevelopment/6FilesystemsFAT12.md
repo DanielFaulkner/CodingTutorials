@@ -74,7 +74,7 @@ Entry 1: Contains the media descriptor (as used in the boot sector parameter tab
 This inversion of the bit order is due to x86 computers being little endian. If you are not confident how this works I recommended pausing and looking up endianess. *NOTE: For FAT16 it is more likely the media descriptor F8 would be used, indicating a fixed, non removable, disk.*  
 
 Entry 2: Contains information on the filesystem condition  
-- Format: <0=Dirty, did not unmount cleanly>,<0=Errors found when last mounting disk>,<All other bits = 1>  
+- Format: First bit: 0=Dirty, did not unmount cleanly; Second bit:0=Errors found when last mounting disk; All other bits=1.  
 - *FAT16:* FFFFh if clean; FF7Fh if not unmounted correctly; FFBFh if the filesystem has errors; FF3Fh if both.
 - *FAT12:* FFFh (Note the filesystem condition flags aren't usually used for FAT12 filesystems)
 
